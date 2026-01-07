@@ -5,14 +5,16 @@ import { Infer, v } from "convex/values";
 // default user roles. can add / remove based on the project as needed
 export const ROLES = {
   ADMIN: "admin",
-  USER: "user",
-  MEMBER: "member",
+  MANAGER: "manager",
+  WAREHOUSE_STAFF: "warehouse_staff",
+  SALES: "sales",
 } as const;
 
 export const roleValidator = v.union(
   v.literal(ROLES.ADMIN),
-  v.literal(ROLES.USER),
-  v.literal(ROLES.MEMBER),
+  v.literal(ROLES.MANAGER),
+  v.literal(ROLES.WAREHOUSE_STAFF),
+  v.literal(ROLES.SALES),
 );
 export type Role = Infer<typeof roleValidator>;
 
@@ -34,10 +36,144 @@ const schema = defineSchema(
 
     // add other tables here
 
-    // tableName: defineTable({
-    //   ...
-    //   // table fields
-    // }).index("by_field", ["field"])
+    // Locations (warehouses, HQ)
+    locations: defineTable({
+      name: v.string(),
+      type: v.union(v.literal("hq"), v.literal("warehouse")),
+      state: v.string(),
+      city: v.string(),
+      address: v.optional(v.string()),
+      contactPerson: v.optional(v.string()),
+      contactPhone: v.optional(v.string()),
+      isActive: v.boolean(),
+    }).index("by_type", ["type"])
+      .index("by_state", ["state"]),
+
+    // Products/SKUs
+    products: defineTable({
+      sku: v.string(),
+      name: v.string(),
+      category: v.string(),
+      description: v.optional(v.string()),
+      unit: v.string(),
+      reorderLevel: v.number(),
+      isActive: v.boolean(),
+    }).index("by_sku", ["sku"])
+      .index("by_category", ["category"]),
+
+    // Inventory (stock levels at each location)
+    inventory: defineTable({
+      productId: v.id("products"),
+      locationId: v.id("locations"),
+      quantity: v.number(),
+      lastUpdated: v.number(),
+    }).index("by_product", ["productId"])
+      .index("by_location", ["locationId"])
+      .index("by_product_and_location", ["productId", "locationId"]),
+
+    // Clients
+    clients: defineTable({
+      name: v.string(),
+      type: v.union(
+        v.literal("hotel"),
+        v.literal("restaurant"),
+        v.literal("cafe"),
+        v.literal("office"),
+        v.literal("other")
+      ),
+      contactPerson: v.string(),
+      contactPhone: v.string(),
+      contactEmail: v.optional(v.string()),
+      isActive: v.boolean(),
+    }).index("by_type", ["type"]),
+
+    // Client Outlets
+    outlets: defineTable({
+      clientId: v.id("clients"),
+      name: v.string(),
+      state: v.string(),
+      city: v.string(),
+      address: v.string(),
+      contactPerson: v.optional(v.string()),
+      contactPhone: v.optional(v.string()),
+      isActive: v.boolean(),
+    }).index("by_client", ["clientId"])
+      .index("by_state", ["state"]),
+
+    // Orders
+    orders: defineTable({
+      orderNumber: v.string(),
+      outletId: v.id("outlets"),
+      clientId: v.id("clients"),
+      status: v.union(
+        v.literal("pending"),
+        v.literal("processing"),
+        v.literal("packed"),
+        v.literal("shipped"),
+        v.literal("delivered"),
+        v.literal("cancelled")
+      ),
+      orderDate: v.number(),
+      expectedDeliveryDate: v.optional(v.number()),
+      actualDeliveryDate: v.optional(v.number()),
+      totalAmount: v.optional(v.number()),
+      notes: v.optional(v.string()),
+      createdBy: v.id("users"),
+    }).index("by_outlet", ["outletId"])
+      .index("by_client", ["clientId"])
+      .index("by_status", ["status"])
+      .index("by_order_number", ["orderNumber"]),
+
+    // Order Items
+    orderItems: defineTable({
+      orderId: v.id("orders"),
+      productId: v.id("products"),
+      quantity: v.number(),
+      unitPrice: v.optional(v.number()),
+      totalPrice: v.optional(v.number()),
+    }).index("by_order", ["orderId"])
+      .index("by_product", ["productId"]),
+
+    // Stock Movements (in/out tracking)
+    stockMovements: defineTable({
+      productId: v.id("products"),
+      locationId: v.id("locations"),
+      movementType: v.union(
+        v.literal("inbound"),
+        v.literal("outbound"),
+        v.literal("adjustment"),
+        v.literal("transfer")
+      ),
+      quantity: v.number(),
+      fromLocationId: v.optional(v.id("locations")),
+      toLocationId: v.optional(v.id("locations")),
+      orderId: v.optional(v.id("orders")),
+      referenceNumber: v.optional(v.string()),
+      notes: v.optional(v.string()),
+      performedBy: v.id("users"),
+      movementDate: v.number(),
+    }).index("by_product", ["productId"])
+      .index("by_location", ["locationId"])
+      .index("by_type", ["movementType"])
+      .index("by_order", ["orderId"]),
+
+    // Alerts
+    alerts: defineTable({
+      type: v.union(
+        v.literal("low_stock"),
+        v.literal("out_of_stock"),
+        v.literal("overstock")
+      ),
+      productId: v.id("products"),
+      locationId: v.id("locations"),
+      currentQuantity: v.number(),
+      threshold: v.number(),
+      isResolved: v.boolean(),
+      resolvedAt: v.optional(v.number()),
+    }).index("by_type", ["type"])
+      .index("by_product", ["productId"])
+      .index("by_location", ["locationId"])
+      .index("by_resolved", ["isResolved"])
   },
   {
     schemaValidation: false,
