@@ -104,24 +104,20 @@ export default function Dashboard() {
 }
 
 function DashboardContent() {
-  const products = useQuery(api.products.list);
-  const inventory = useQuery(api.inventory.list);
-  const lowStockItems = useQuery(api.inventory.getLowStock);
-  const orders = useQuery(api.orders.list);
+  const stats = useQuery(api.dashboard.getStats);
+  const recentOrders = useQuery(api.dashboard.getRecentOrders);
+  const lowStockItems = useQuery(api.dashboard.getLowStockSummary);
 
-  if (products === undefined || inventory === undefined || orders === undefined) {
+  if (stats === undefined || recentOrders === undefined || lowStockItems === undefined) {
     return <div className="text-sm text-muted-foreground">Loading...</div>;
   }
 
-  const activeProducts = products.filter((p) => p.isActive).length;
-  const totalStock = inventory.reduce((sum, item) => sum + item.quantity, 0);
-  const lowStock = lowStockItems?.length || 0;
-  const pendingOrders = orders.filter((o) => o.status === "pending").length;
+  const { activeProducts, totalStock, lowStockCount, pendingOrders } = stats;
 
-  const stats = [
+  const statsDisplay = [
     { label: "Active Products", value: activeProducts, icon: Package },
     { label: "Total Stock Items", value: totalStock, icon: Warehouse },
-    { label: "Low Stock Alerts", value: lowStock, icon: AlertTriangle, alert: lowStock > 0 },
+    { label: "Low Stock Alerts", value: lowStockCount, icon: AlertTriangle, alert: lowStockCount > 0 },
     { label: "Pending Orders", value: pendingOrders, icon: ShoppingCart },
   ];
 
@@ -135,7 +131,7 @@ function DashboardContent() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, index) => {
+        {statsDisplay.map((stat, index) => {
           const Icon = stat.icon;
           return (
             <motion.div
@@ -158,7 +154,7 @@ function DashboardContent() {
         })}
       </div>
 
-      {lowStock > 0 && (
+      {lowStockCount > 0 && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -169,7 +165,7 @@ function DashboardContent() {
             <div>
               <h3 className="text-sm font-medium">Low Stock Alert</h3>
               <p className="text-xs text-muted-foreground mt-1">
-                {lowStock} product{lowStock > 1 ? 's are' : ' is'} running low on stock.
+                {lowStockCount} product{lowStockCount > 1 ? 's are' : ' is'} running low on stock.
                 <Link to="/inventory" className="underline ml-1">View details</Link>
               </p>
             </div>
@@ -180,11 +176,11 @@ function DashboardContent() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-card border border-border p-6">
           <h2 className="text-base font-medium mb-4">Recent Orders</h2>
-          {orders.length === 0 ? (
+          {recentOrders.length === 0 ? (
             <p className="text-xs text-muted-foreground">No orders yet</p>
           ) : (
             <div className="space-y-2">
-              {orders.slice(0, 5).map((order) => (
+              {recentOrders.map((order) => (
                 <div
                   key={order._id}
                   className="flex items-center justify-between py-2 border-b border-border last:border-0"
@@ -210,11 +206,11 @@ function DashboardContent() {
 
         <div className="bg-card border border-border p-6">
           <h2 className="text-base font-medium mb-4">Low Stock Items</h2>
-          {!lowStockItems || lowStockItems.length === 0 ? (
+          {lowStockItems.length === 0 ? (
             <p className="text-xs text-muted-foreground">All stock levels are healthy</p>
           ) : (
             <div className="space-y-2">
-              {lowStockItems.slice(0, 5).map((item) => (
+              {lowStockItems.map((item) => (
                 <div
                   key={item._id}
                   className="flex items-center justify-between py-2 border-b border-border last:border-0"

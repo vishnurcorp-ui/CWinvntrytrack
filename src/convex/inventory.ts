@@ -5,7 +5,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const inventory = await ctx.db.query("inventory").collect();
+    const inventory = await ctx.db.query("inventory").take(100);
 
     const enriched = await Promise.all(
       inventory.map(async (item) => {
