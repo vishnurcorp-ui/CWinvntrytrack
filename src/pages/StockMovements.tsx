@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navigate, Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, TrendingUp, TrendingDown, ArrowRightLeft, Plus } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, ArrowRightLeft, Plus, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -70,7 +70,7 @@ export default function StockMovements() {
                     Stock In
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Record Stock In (Inbound)</DialogTitle>
                   </DialogHeader>
@@ -85,7 +85,7 @@ export default function StockMovements() {
                     Stock Out
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Record Stock Out (Outbound)</DialogTitle>
                   </DialogHeader>
@@ -205,25 +205,54 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
   const products = useQuery(api.products.list);
   const locations = useQuery(api.locations.list);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
+  const [stockItems, setStockItems] = useState<Array<{
+    productId: string;
+    quantity: number;
+  }>>([{ productId: "", quantity: 1 }]);
+
+  const addItem = () => {
+    setStockItems([...stockItems, { productId: "", quantity: 1 }]);
+  };
+
+  const removeItem = (index: number) => {
+    setStockItems(stockItems.filter((_, i) => i !== index));
+  };
+
+  const updateItem = (index: number, field: string, value: any) => {
+    const updated = [...stockItems];
+    updated[index] = { ...updated[index], [field]: value };
+    setStockItems(updated);
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
 
+    const validItems = stockItems.filter(item => item.productId && item.quantity > 0);
+
+    if (validItems.length === 0) {
+      toast("Please add at least one product");
+      setIsSubmitting(false);
+      return;
+    }
+
     const formData = new FormData(e.currentTarget);
-    const data = {
-      productId: selectedProduct as any,
-      locationId: selectedLocation as any,
-      quantity: Number(formData.get("quantity")),
-      referenceNumber: formData.get("referenceNumber") as string,
-      notes: formData.get("notes") as string,
-    };
+    const referenceNumber = formData.get("referenceNumber") as string;
+    const notes = formData.get("notes") as string;
 
     try {
-      await recordInbound(data);
-      toast("Stock in recorded successfully");
+      // Record each product separately
+      for (const item of validItems) {
+        await recordInbound({
+          productId: item.productId as any,
+          locationId: selectedLocation as any,
+          quantity: item.quantity,
+          referenceNumber,
+          notes,
+        });
+      }
+      toast(`Stock in recorded successfully for ${validItems.length} product(s)`);
       onSuccess();
     } catch (error: any) {
       toast(error.message || "Failed to record stock in");
@@ -234,22 +263,6 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="product" className="text-xs">Product *</Label>
-        <Select value={selectedProduct} onValueChange={setSelectedProduct} required>
-          <SelectTrigger className="text-sm">
-            <SelectValue placeholder="Select a product" />
-          </SelectTrigger>
-          <SelectContent>
-            {products?.filter(p => p.isActive).map((product) => (
-              <SelectItem key={product._id} value={product._id}>
-                {product.name} ({product.sku})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
       <div className="space-y-2">
         <Label htmlFor="location" className="text-xs">Receiving Location *</Label>
         <Select value={selectedLocation} onValueChange={setSelectedLocation} required>
@@ -267,17 +280,62 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="quantity" className="text-xs">Quantity *</Label>
-        <Input
-          id="quantity"
-          name="quantity"
-          type="number"
-          min="1"
-          step="0.01"
-          placeholder="e.g., 100"
-          required
-          className="text-sm"
-        />
+        <div className="flex items-center justify-between">
+          <Label className="text-xs">Products *</Label>
+          <Button type="button" size="sm" variant="outline" onClick={addItem} className="h-7 text-xs">
+            <Plus className="h-3 w-3 mr-1" />
+            Add Product
+          </Button>
+        </div>
+        <div className="space-y-2 max-h-60 overflow-y-auto border border-border p-2">
+          {stockItems.map((item, index) => (
+            <div key={index} className="flex gap-2 items-end">
+              <div className="flex-1 space-y-1">
+                <Label htmlFor={`product-${index}`} className="text-xs">Product</Label>
+                <Select
+                  value={item.productId}
+                  onValueChange={(val) => updateItem(index, "productId", val)}
+                  required
+                >
+                  <SelectTrigger className="text-xs h-8">
+                    <SelectValue placeholder="Select product" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products?.filter(p => p.isActive).map((product) => (
+                      <SelectItem key={product._id} value={product._id} className="text-xs">
+                        {product.name} ({product.sku})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-32 space-y-1">
+                <Label htmlFor={`quantity-${index}`} className="text-xs">Quantity</Label>
+                <Input
+                  id={`quantity-${index}`}
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  value={item.quantity}
+                  onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
+                  className="text-xs h-8"
+                  required
+                />
+              </div>
+              {stockItems.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeItem(index)}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -311,7 +369,7 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
         >
           Cancel
         </Button>
-        <Button type="submit" size="sm" disabled={isSubmitting || !selectedProduct || !selectedLocation} className="text-xs">
+        <Button type="submit" size="sm" disabled={isSubmitting || !selectedLocation} className="text-xs">
           {isSubmitting ? "Recording..." : "Record Stock In"}
         </Button>
       </div>
@@ -324,24 +382,52 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
   const products = useQuery(api.products.list);
   const locations = useQuery(api.locations.list);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
+  const [stockItems, setStockItems] = useState<Array<{
+    productId: string;
+    quantity: number;
+  }>>([{ productId: "", quantity: 1 }]);
+
+  const addItem = () => {
+    setStockItems([...stockItems, { productId: "", quantity: 1 }]);
+  };
+
+  const removeItem = (index: number) => {
+    setStockItems(stockItems.filter((_, i) => i !== index));
+  };
+
+  const updateItem = (index: number, field: string, value: any) => {
+    const updated = [...stockItems];
+    updated[index] = { ...updated[index], [field]: value };
+    setStockItems(updated);
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
 
+    const validItems = stockItems.filter(item => item.productId && item.quantity > 0);
+
+    if (validItems.length === 0) {
+      toast("Please add at least one product");
+      setIsSubmitting(false);
+      return;
+    }
+
     const formData = new FormData(e.currentTarget);
-    const data = {
-      productId: selectedProduct as any,
-      locationId: selectedLocation as any,
-      quantity: Number(formData.get("quantity")),
-      notes: formData.get("notes") as string,
-    };
+    const notes = formData.get("notes") as string;
 
     try {
-      await recordOutbound(data);
-      toast("Stock out recorded successfully");
+      // Record each product separately
+      for (const item of validItems) {
+        await recordOutbound({
+          productId: item.productId as any,
+          locationId: selectedLocation as any,
+          quantity: item.quantity,
+          notes,
+        });
+      }
+      toast(`Stock out recorded successfully for ${validItems.length} product(s)`);
       onSuccess();
     } catch (error: any) {
       toast(error.message || "Failed to record stock out");
@@ -352,22 +438,6 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="product-out" className="text-xs">Product *</Label>
-        <Select value={selectedProduct} onValueChange={setSelectedProduct} required>
-          <SelectTrigger className="text-sm">
-            <SelectValue placeholder="Select a product" />
-          </SelectTrigger>
-          <SelectContent>
-            {products?.filter(p => p.isActive).map((product) => (
-              <SelectItem key={product._id} value={product._id}>
-                {product.name} ({product.sku})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
       <div className="space-y-2">
         <Label htmlFor="location-out" className="text-xs">From Location *</Label>
         <Select value={selectedLocation} onValueChange={setSelectedLocation} required>
@@ -385,17 +455,62 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="quantity-out" className="text-xs">Quantity *</Label>
-        <Input
-          id="quantity-out"
-          name="quantity"
-          type="number"
-          min="1"
-          step="0.01"
-          placeholder="e.g., 50"
-          required
-          className="text-sm"
-        />
+        <div className="flex items-center justify-between">
+          <Label className="text-xs">Products *</Label>
+          <Button type="button" size="sm" variant="outline" onClick={addItem} className="h-7 text-xs">
+            <Plus className="h-3 w-3 mr-1" />
+            Add Product
+          </Button>
+        </div>
+        <div className="space-y-2 max-h-60 overflow-y-auto border border-border p-2">
+          {stockItems.map((item, index) => (
+            <div key={index} className="flex gap-2 items-end">
+              <div className="flex-1 space-y-1">
+                <Label htmlFor={`product-out-${index}`} className="text-xs">Product</Label>
+                <Select
+                  value={item.productId}
+                  onValueChange={(val) => updateItem(index, "productId", val)}
+                  required
+                >
+                  <SelectTrigger className="text-xs h-8">
+                    <SelectValue placeholder="Select product" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products?.filter(p => p.isActive).map((product) => (
+                      <SelectItem key={product._id} value={product._id} className="text-xs">
+                        {product.name} ({product.sku})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-32 space-y-1">
+                <Label htmlFor={`quantity-out-${index}`} className="text-xs">Quantity</Label>
+                <Input
+                  id={`quantity-out-${index}`}
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  value={item.quantity}
+                  onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
+                  className="text-xs h-8"
+                  required
+                />
+              </div>
+              {stockItems.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeItem(index)}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -419,7 +534,7 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
         >
           Cancel
         </Button>
-        <Button type="submit" size="sm" disabled={isSubmitting || !selectedProduct || !selectedLocation} className="text-xs">
+        <Button type="submit" size="sm" disabled={isSubmitting || !selectedLocation} className="text-xs">
           {isSubmitting ? "Recording..." : "Record Stock Out"}
         </Button>
       </div>

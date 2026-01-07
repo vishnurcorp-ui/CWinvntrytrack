@@ -28,10 +28,11 @@ import { Label } from "@/components/ui/label";
 export default function Products() {
   const viewer = useQuery(api.users.currentUser);
   const products = useQuery(api.products.list);
+  const inventory = useQuery(api.inventory.list);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
 
-  if (viewer === undefined || products === undefined) {
+  if (viewer === undefined || products === undefined || inventory === undefined) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-pulse text-sm">Loading...</div>
@@ -42,6 +43,11 @@ export default function Products() {
   if (viewer === null) {
     return <Navigate to="/auth" />;
   }
+
+  const getProductStock = (productId: Id<"products">) => {
+    const productInventory = inventory.filter(inv => inv.productId === productId);
+    return productInventory.reduce((sum, inv) => sum + inv.quantity, 0);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -104,13 +110,15 @@ export default function Products() {
                     <TableHead className="text-xs">Name</TableHead>
                     <TableHead className="text-xs">Category</TableHead>
                     <TableHead className="text-xs">Unit</TableHead>
-                    <TableHead className="text-xs">Reorder Level</TableHead>
+                    <TableHead className="text-xs">Available Stock</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
                     <TableHead className="text-xs">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.map((product) => (
+                  {products.map((product) => {
+                    const totalStock = getProductStock(product._id);
+                    return (
                     <TableRow key={product._id}>
                       <TableCell className="text-xs font-mono">
                         {product.sku}
@@ -124,8 +132,8 @@ export default function Products() {
                       <TableCell className="text-xs">
                         {product.unit}
                       </TableCell>
-                      <TableCell className="text-xs">
-                        {product.reorderLevel}
+                      <TableCell className="text-xs font-medium">
+                        {totalStock} {product.unit}
                       </TableCell>
                       <TableCell>
                         <span className={`text-xs px-2 py-1 ${
@@ -145,7 +153,8 @@ export default function Products() {
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
