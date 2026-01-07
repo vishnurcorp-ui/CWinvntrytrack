@@ -1,9 +1,18 @@
-import { useQuery } from "convex/react";
+import { useState } from "react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navigate, Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Users } from "lucide-react";
+import { ArrowLeft, Users, Plus } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -12,10 +21,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function Clients() {
   const viewer = useQuery(api.users.currentUser);
   const clients = useQuery(api.clients.list);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   if (viewer === undefined || clients === undefined) {
     return (
@@ -33,13 +52,27 @@ export default function Clients() {
     <div className="min-h-screen bg-background">
       <nav className="border-b border-border bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center h-14">
+          <div className="flex items-center justify-between h-14">
             <Link to="/dashboard">
               <Button variant="ghost" size="sm" className="gap-2 text-xs">
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Back
               </Button>
             </Link>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="gap-2 text-xs">
+                  <Plus className="h-3.5 w-3.5" />
+                  Add Client
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Client</DialogTitle>
+                </DialogHeader>
+                <AddClientForm onSuccess={() => setIsDialogOpen(false)} />
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </nav>
@@ -61,7 +94,11 @@ export default function Clients() {
           {clients.length === 0 ? (
             <div className="bg-card border border-border p-12 text-center">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-sm text-muted-foreground">No clients yet</p>
+              <p className="text-sm text-muted-foreground mb-4">No clients yet</p>
+              <Button onClick={() => setIsDialogOpen(true)} size="sm" className="gap-2 text-xs">
+                <Plus className="h-3.5 w-3.5" />
+                Add Your First Client
+              </Button>
             </div>
           ) : (
             <div className="bg-card border border-border">
@@ -112,5 +149,115 @@ export default function Clients() {
         </motion.div>
       </main>
     </div>
+  );
+}
+
+function AddClientForm({ onSuccess }: { onSuccess: () => void }) {
+  const createClient = useMutation(api.clients.create);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [type, setType] = useState<"hotel" | "restaurant" | "cafe" | "office" | "other">("hotel");
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      name: formData.get("name") as string,
+      type,
+      contactPerson: formData.get("contactPerson") as string,
+      contactPhone: formData.get("contactPhone") as string,
+      contactEmail: formData.get("contactEmail") as string,
+    };
+
+    try {
+      await createClient(data);
+      toast("Client created successfully");
+      onSuccess();
+    } catch (error: any) {
+      toast(error.message || "Failed to create client");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="name" className="text-xs">Client Name *</Label>
+        <Input
+          id="name"
+          name="name"
+          placeholder="e.g., Grand Plaza Hotel"
+          required
+          className="text-sm"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="type" className="text-xs">Business Type *</Label>
+        <Select value={type} onValueChange={(value) => setType(value as typeof type)}>
+          <SelectTrigger className="text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="hotel">Hotel</SelectItem>
+            <SelectItem value="restaurant">Restaurant</SelectItem>
+            <SelectItem value="cafe">Cafe</SelectItem>
+            <SelectItem value="office">Office</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="contactPerson" className="text-xs">Contact Person *</Label>
+        <Input
+          id="contactPerson"
+          name="contactPerson"
+          placeholder="Name"
+          required
+          className="text-sm"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="contactPhone" className="text-xs">Contact Phone *</Label>
+        <Input
+          id="contactPhone"
+          name="contactPhone"
+          placeholder="+91-XXXXXXXXXX"
+          required
+          className="text-sm"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="contactEmail" className="text-xs">Contact Email</Label>
+        <Input
+          id="contactEmail"
+          name="contactEmail"
+          type="email"
+          placeholder="email@example.com"
+          className="text-sm"
+        />
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onSuccess}
+          disabled={isSubmitting}
+          className="text-xs"
+        >
+          Cancel
+        </Button>
+        <Button type="submit" size="sm" disabled={isSubmitting} className="text-xs">
+          {isSubmitting ? "Creating..." : "Create Client"}
+        </Button>
+      </div>
+    </form>
   );
 }

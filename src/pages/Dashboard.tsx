@@ -11,7 +11,8 @@ import {
   TrendingUp,
   AlertTriangle,
   LogOut,
-  BarChart3
+  BarChart3,
+  MapPin
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -37,10 +38,9 @@ export default function Dashboard() {
     { name: "Inventory", path: "/inventory", icon: Package },
     { name: "Products", path: "/products", icon: Package },
     { name: "Orders", path: "/orders", icon: ShoppingCart },
-    { name: "Stock Movements", path: "/stock-movements", icon: TrendingUp },
     { name: "Locations", path: "/locations", icon: Warehouse },
     { name: "Clients", path: "/clients", icon: Users },
-    { name: "Alerts", path: "/alerts", icon: AlertTriangle },
+    { name: "Outlets", path: "/outlets", icon: MapPin },
   ];
 
   return (
