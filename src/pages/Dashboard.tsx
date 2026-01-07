@@ -37,6 +37,7 @@ export default function Dashboard() {
     { name: "Overview", path: "/dashboard", icon: BarChart3 },
     { name: "Inventory", path: "/inventory", icon: Package },
     { name: "Products", path: "/products", icon: Package },
+    { name: "Stock", path: "/stock-movements", icon: TrendingUp },
     { name: "Orders", path: "/orders", icon: ShoppingCart },
     { name: "Locations", path: "/locations", icon: Warehouse },
     { name: "Clients", path: "/clients", icon: Users },

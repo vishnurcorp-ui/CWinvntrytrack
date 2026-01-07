@@ -3,9 +3,10 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navigate, Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Package } from "lucide-react";
+import { ArrowLeft, Plus, Package, Edit } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { Id } from "@/convex/_generated/dataModel";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,7 @@ export default function Products() {
   const viewer = useQuery(api.users.currentUser);
   const products = useQuery(api.products.list);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
 
   if (viewer === undefined || products === undefined) {
     return (
@@ -104,6 +106,7 @@ export default function Products() {
                     <TableHead className="text-xs">Unit</TableHead>
                     <TableHead className="text-xs">Reorder Level</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
+                    <TableHead className="text-xs">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -131,6 +134,16 @@ export default function Products() {
                           {product.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingProduct(product)}
+                          className="h-7 px-2"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -139,6 +152,20 @@ export default function Products() {
           )}
         </motion.div>
       </main>
+
+      <Dialog open={!!editingProduct} onOpenChange={() => setEditingProduct(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Product</DialogTitle>
+          </DialogHeader>
+          {editingProduct && (
+            <EditProductForm
+              product={editingProduct}
+              onSuccess={() => setEditingProduct(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -256,6 +283,120 @@ function AddProductForm({ onSuccess }: { onSuccess: () => void }) {
         </Button>
         <Button type="submit" size="sm" disabled={isSubmitting} className="text-xs">
           {isSubmitting ? "Creating..." : "Create Product"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+
+function EditProductForm({ product, onSuccess }: { product: any; onSuccess: () => void }) {
+  const updateProduct = useMutation(api.products.update);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      id: product._id,
+      name: formData.get("name") as string,
+      category: formData.get("category") as string,
+      description: formData.get("description") as string,
+      unit: formData.get("unit") as string,
+      reorderLevel: Number(formData.get("reorderLevel")),
+    };
+
+    try {
+      await updateProduct(data);
+      toast("Product updated successfully");
+      onSuccess();
+    } catch (error: any) {
+      toast(error.message || "Failed to update product");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="edit-name" className="text-xs">Product Name *</Label>
+        <Input
+          id="edit-name"
+          name="name"
+          defaultValue={product.name}
+          placeholder="e.g., Floor Cleaner"
+          required
+          className="text-sm"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="edit-category" className="text-xs">Category *</Label>
+        <Input
+          id="edit-category"
+          name="category"
+          defaultValue={product.category}
+          placeholder="e.g., Floor Cleaning"
+          required
+          className="text-sm"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="edit-description" className="text-xs">Description</Label>
+        <Input
+          id="edit-description"
+          name="description"
+          defaultValue={product.description || ""}
+          placeholder="Product description"
+          className="text-sm"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="edit-unit" className="text-xs">Unit *</Label>
+          <Input
+            id="edit-unit"
+            name="unit"
+            defaultValue={product.unit}
+            placeholder="e.g., Liters"
+            required
+            className="text-sm"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="edit-reorderLevel" className="text-xs">Reorder Level *</Label>
+          <Input
+            id="edit-reorderLevel"
+            name="reorderLevel"
+            type="number"
+            min="0"
+            defaultValue={product.reorderLevel}
+            placeholder="e.g., 50"
+            required
+            className="text-sm"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onSuccess}
+          disabled={isSubmitting}
+          className="text-xs"
+        >
+          Cancel
+        </Button>
+        <Button type="submit" size="sm" disabled={isSubmitting} className="text-xs">
+          {isSubmitting ? "Updating..." : "Update Product"}
         </Button>
       </div>
     </form>
