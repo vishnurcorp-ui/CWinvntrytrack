@@ -323,7 +323,12 @@ function AddProductForm({ onSuccess }: { onSuccess: () => void }) {
 
 function EditProductForm({ product, onSuccess }: { product: any; onSuccess: () => void }) {
   const updateProduct = useMutation(api.products.update);
+  const inventory = useQuery(api.inventory.list);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const availableStock = inventory
+    ? inventory.filter(inv => inv.productId === product._id).reduce((sum, inv) => sum + inv.quantity, 0)
+    : 0;
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -336,7 +341,7 @@ function EditProductForm({ product, onSuccess }: { product: any; onSuccess: () =
       category: formData.get("category") as string,
       description: formData.get("description") as string,
       unit: formData.get("unit") as string,
-      reorderLevel: Number(formData.get("reorderLevel")),
+      reorderLevel: product.reorderLevel, // Keep existing reorder level
     };
 
     try {
@@ -401,17 +406,17 @@ function EditProductForm({ product, onSuccess }: { product: any; onSuccess: () =
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="edit-reorderLevel" className="text-xs">Reorder Level *</Label>
+          <Label htmlFor="edit-availableStock" className="text-xs">Available Stock</Label>
           <Input
-            id="edit-reorderLevel"
-            name="reorderLevel"
-            type="number"
-            min="0"
-            defaultValue={product.reorderLevel}
-            placeholder="e.g., 50"
-            required
-            className="text-sm"
+            id="edit-availableStock"
+            type="text"
+            value={`${availableStock} ${product.unit}`}
+            disabled
+            className="text-sm bg-muted"
           />
+          <p className="text-xs text-muted-foreground">
+            Stock is managed through Inventory page
+          </p>
         </div>
       </div>
 
