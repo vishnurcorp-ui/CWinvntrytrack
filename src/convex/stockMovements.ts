@@ -177,6 +177,62 @@ export const recordTransfer = mutation({
   },
 });
 
+export const update = mutation({
+  args: {
+    id: v.id("stockMovements"),
+    quantity: v.number(),
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const movement = await ctx.db.get(args.id);
+    if (!movement) throw new Error("Stock movement not found");
+
+    const oldQuantity = movement.quantity;
+    const quantityDifference = args.quantity - oldQuantity;
+
+    // Update the stock movement record
+    await ctx.db.patch(args.id, {
+      quantity: args.quantity,
+      notes: args.notes,
+    });
+
+    // Adjust inventory based on the quantity difference
+    if (quantityDifference !== 0) {
+      if (movement.movementType === "inbound") {
+        await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+          productId: movement.productId,
+          locationId: movement.locationId,
+          adjustment: quantityDifference,
+        });
+      } else if (movement.movementType === "outbound") {
+        await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+          productId: movement.productId,
+          locationId: movement.locationId,
+          adjustment: -quantityDifference,
+        });
+      } else if (movement.movementType === "transfer") {
+        // Reverse from the old "from" location
+        await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+          productId: movement.productId,
+          locationId: movement.fromLocationId!,
+          adjustment: -quantityDifference,
+        });
+        // Add to the "to" location
+        await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+          productId: movement.productId,
+          locationId: movement.toLocationId!,
+          adjustment: quantityDifference,
+        });
+      }
+    }
+
+    return args.id;
+  },
+});
+
 export const updateInventory = internalMutation({
   args: {
     productId: v.id("products"),

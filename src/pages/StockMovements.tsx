@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navigate, Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, TrendingUp, TrendingDown, ArrowRightLeft, Plus, X } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, ArrowRightLeft, Plus, X, Edit } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -38,6 +38,7 @@ export default function StockMovements() {
   const [isInboundOpen, setIsInboundOpen] = useState(false);
   const [isOutboundOpen, setIsOutboundOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const [editingMovement, setEditingMovement] = useState<any>(null);
 
   if (viewer === undefined || movements === undefined) {
     return (
@@ -146,6 +147,7 @@ export default function StockMovements() {
                     <TableHead className="text-xs">Location</TableHead>
                     <TableHead className="text-xs">Date</TableHead>
                     <TableHead className="text-xs">Reference</TableHead>
+                    <TableHead className="text-xs">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -188,6 +190,16 @@ export default function StockMovements() {
                       <TableCell className="text-xs text-muted-foreground">
                         {movement.referenceNumber || movement.notes || '-'}
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingMovement(movement)}
+                          className="h-7 px-2"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -196,7 +208,117 @@ export default function StockMovements() {
           )}
         </motion.div>
       </main>
+
+      <Dialog open={!!editingMovement} onOpenChange={() => setEditingMovement(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Stock Movement</DialogTitle>
+          </DialogHeader>
+          {editingMovement && (
+            <EditMovementForm
+              movement={editingMovement}
+              onSuccess={() => setEditingMovement(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function EditMovementForm({ movement, onSuccess }: { movement: any; onSuccess: () => void }) {
+  const updateMovement = useMutation(api.stockMovements.update);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      id: movement._id,
+      quantity: Number(formData.get("quantity")),
+      notes: formData.get("notes") as string,
+    };
+
+    try {
+      await updateMovement(data);
+      toast("Stock movement updated successfully");
+      onSuccess();
+    } catch (error: any) {
+      toast(error.message || "Failed to update stock movement");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="bg-muted p-3 space-y-1">
+        <p className="text-xs text-muted-foreground">Movement Details</p>
+        <p className="text-sm font-medium">
+          {movement.product?.name} ({movement.product?.sku})
+        </p>
+        <p className="text-xs text-muted-foreground capitalize">
+          {movement.movementType} - {movement.location?.name}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Date: {new Date(movement.movementDate).toLocaleString()}
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="edit-quantity" className="text-xs">Quantity *</Label>
+        <Input
+          id="edit-quantity"
+          name="quantity"
+          type="number"
+          min="0.01"
+          step="0.01"
+          defaultValue={movement.quantity}
+          placeholder="Enter quantity"
+          required
+          className="text-sm"
+        />
+        <p className="text-xs text-muted-foreground">
+          Original quantity: {movement.quantity} {movement.product?.unit}
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="edit-notes" className="text-xs">Notes</Label>
+        <Input
+          id="edit-notes"
+          name="notes"
+          defaultValue={movement.notes || ""}
+          placeholder="Update notes or reason for change"
+          className="text-sm"
+        />
+      </div>
+
+      <div className="bg-yellow-50 border border-yellow-200 p-3">
+        <p className="text-xs text-yellow-800">
+          <strong>Warning:</strong> Editing this movement will automatically adjust the inventory levels.
+          The difference between the old and new quantity will be applied to the stock.
+        </p>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onSuccess}
+          disabled={isSubmitting}
+          className="text-xs"
+        >
+          Cancel
+        </Button>
+        <Button type="submit" size="sm" disabled={isSubmitting} className="text-xs">
+          {isSubmitting ? "Updating..." : "Update Movement"}
+        </Button>
+      </div>
+    </form>
   );
 }
 
