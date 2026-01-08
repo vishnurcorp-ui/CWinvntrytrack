@@ -252,15 +252,30 @@ function EditMovementForm({ movement, onSuccess }: { movement: any; onSuccess: (
   const updateMovement = useMutation(api.stockMovements.update);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Format date for datetime-local input
+  const formatDateForInput = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     const formData = new FormData(e.currentTarget);
+    const dateString = formData.get("movementDate") as string;
+    const movementDate = dateString ? new Date(dateString).getTime() : movement.movementDate;
+
     const data = {
       id: movement._id,
       quantity: Number(formData.get("quantity")),
       notes: formData.get("notes") as string,
+      movementDate,
     };
 
     try {
@@ -284,8 +299,20 @@ function EditMovementForm({ movement, onSuccess }: { movement: any; onSuccess: (
         <p className="text-xs text-muted-foreground capitalize">
           {movement.movementType} - {movement.location?.name}
         </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="edit-movementDate" className="text-xs">Movement Date & Time *</Label>
+        <Input
+          id="edit-movementDate"
+          name="movementDate"
+          type="datetime-local"
+          defaultValue={formatDateForInput(movement.movementDate)}
+          required
+          className="text-sm"
+        />
         <p className="text-xs text-muted-foreground">
-          Date: {new Date(movement.movementDate).toLocaleString()}
+          Original date: {new Date(movement.movementDate).toLocaleString()}
         </p>
       </div>
 
@@ -320,8 +347,8 @@ function EditMovementForm({ movement, onSuccess }: { movement: any; onSuccess: (
 
       <div className="bg-yellow-50 border border-yellow-200 p-3">
         <p className="text-xs text-yellow-800">
-          <strong>Warning:</strong> Editing this movement will automatically adjust the inventory levels.
-          The difference between the old and new quantity will be applied to the stock.
+          <strong>Warning:</strong> Editing the quantity will automatically adjust the inventory levels.
+          The difference between the old and new quantity will be applied to the stock. You can also update the movement date to correct historical records.
         </p>
       </div>
 

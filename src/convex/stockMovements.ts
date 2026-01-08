@@ -182,6 +182,7 @@ export const update = mutation({
     id: v.id("stockMovements"),
     quantity: v.number(),
     notes: v.optional(v.string()),
+    movementDate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -197,6 +198,7 @@ export const update = mutation({
     await ctx.db.patch(args.id, {
       quantity: args.quantity,
       notes: args.notes,
+      movementDate: args.movementDate ?? movement.movementDate,
     });
 
     // Adjust inventory based on the quantity difference
