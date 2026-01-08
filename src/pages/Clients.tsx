@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navigate, Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Users, Plus } from "lucide-react";
+import { ArrowLeft, Users, Plus, Edit } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -35,6 +35,7 @@ export default function Clients() {
   const viewer = useQuery(api.users.currentUser);
   const clients = useQuery(api.clients.list);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<any>(null);
 
   if (viewer === undefined || clients === undefined) {
     return (
@@ -111,6 +112,7 @@ export default function Clients() {
                     <TableHead className="text-xs">Phone</TableHead>
                     <TableHead className="text-xs">Email</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
+                    <TableHead className="text-xs">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -140,6 +142,16 @@ export default function Clients() {
                           {client.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingClient(client)}
+                          className="h-7 px-2"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -148,7 +160,118 @@ export default function Clients() {
           )}
         </motion.div>
       </main>
+
+      <Dialog open={!!editingClient} onOpenChange={() => setEditingClient(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Client</DialogTitle>
+          </DialogHeader>
+          {editingClient && (
+            <EditClientForm
+              client={editingClient}
+              onSuccess={() => setEditingClient(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function EditClientForm({ client, onSuccess }: { client: any; onSuccess: () => void }) {
+  const updateClient = useMutation(api.clients.update);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      id: client._id,
+      name: formData.get("name") as string,
+      contactPerson: formData.get("contactPerson") as string,
+      contactPhone: formData.get("contactPhone") as string,
+      contactEmail: formData.get("contactEmail") as string,
+    };
+
+    try {
+      await updateClient(data);
+      toast("Client updated successfully");
+      onSuccess();
+    } catch (error: any) {
+      toast(error.message || "Failed to update client");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="edit-name" className="text-xs">Client Name *</Label>
+        <Input
+          id="edit-name"
+          name="name"
+          defaultValue={client.name}
+          placeholder="e.g., Grand Plaza Hotel"
+          required
+          className="text-sm"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="edit-contactPerson" className="text-xs">Contact Person *</Label>
+        <Input
+          id="edit-contactPerson"
+          name="contactPerson"
+          defaultValue={client.contactPerson}
+          placeholder="Name"
+          required
+          className="text-sm"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="edit-contactPhone" className="text-xs">Contact Phone *</Label>
+        <Input
+          id="edit-contactPhone"
+          name="contactPhone"
+          defaultValue={client.contactPhone}
+          placeholder="+91-XXXXXXXXXX"
+          required
+          className="text-sm"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="edit-contactEmail" className="text-xs">Contact Email</Label>
+        <Input
+          id="edit-contactEmail"
+          name="contactEmail"
+          type="email"
+          defaultValue={client.contactEmail || ""}
+          placeholder="email@example.com"
+          className="text-sm"
+        />
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onSuccess}
+          disabled={isSubmitting}
+          className="text-xs"
+        >
+          Cancel
+        </Button>
+        <Button type="submit" size="sm" disabled={isSubmitting} className="text-xs">
+          {isSubmitting ? "Updating..." : "Update Client"}
+        </Button>
+      </div>
+    </form>
   );
 }
 

@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navigate, Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Warehouse } from "lucide-react";
+import { ArrowLeft, Plus, Warehouse, Edit } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -35,6 +35,7 @@ export default function Locations() {
   const viewer = useQuery(api.users.currentUser);
   const locations = useQuery(api.locations.list);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingLocation, setEditingLocation] = useState<any>(null);
 
   if (viewer === undefined || locations === undefined) {
     return (
@@ -110,6 +111,7 @@ export default function Locations() {
                     <TableHead className="text-xs">Location</TableHead>
                     <TableHead className="text-xs">Contact</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
+                    <TableHead className="text-xs">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -144,6 +146,16 @@ export default function Locations() {
                           {location.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingLocation(location)}
+                          className="h-7 px-2"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -152,7 +164,145 @@ export default function Locations() {
           )}
         </motion.div>
       </main>
+
+      <Dialog open={!!editingLocation} onOpenChange={() => setEditingLocation(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Location</DialogTitle>
+          </DialogHeader>
+          {editingLocation && (
+            <EditLocationForm
+              location={editingLocation}
+              onSuccess={() => setEditingLocation(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function EditLocationForm({ location, onSuccess }: { location: any; onSuccess: () => void }) {
+  const updateLocation = useMutation(api.locations.update);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      id: location._id,
+      name: formData.get("name") as string,
+      city: formData.get("city") as string,
+      state: formData.get("state") as string,
+      address: formData.get("address") as string,
+      contactPerson: formData.get("contactPerson") as string,
+      contactPhone: formData.get("contactPhone") as string,
+    };
+
+    try {
+      await updateLocation(data);
+      toast("Location updated successfully");
+      onSuccess();
+    } catch (error: any) {
+      toast(error.message || "Failed to update location");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="edit-name" className="text-xs">Location Name *</Label>
+        <Input
+          id="edit-name"
+          name="name"
+          defaultValue={location.name}
+          placeholder="e.g., Bangalore Warehouse"
+          required
+          className="text-sm"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="edit-city" className="text-xs">City *</Label>
+          <Input
+            id="edit-city"
+            name="city"
+            defaultValue={location.city}
+            placeholder="e.g., Bangalore"
+            required
+            className="text-sm"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="edit-state" className="text-xs">State *</Label>
+          <Input
+            id="edit-state"
+            name="state"
+            defaultValue={location.state}
+            placeholder="e.g., Karnataka"
+            required
+            className="text-sm"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="edit-address" className="text-xs">Address</Label>
+        <Input
+          id="edit-address"
+          name="address"
+          defaultValue={location.address || ""}
+          placeholder="Full address"
+          className="text-sm"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="edit-contactPerson" className="text-xs">Contact Person</Label>
+          <Input
+            id="edit-contactPerson"
+            name="contactPerson"
+            defaultValue={location.contactPerson || ""}
+            placeholder="Name"
+            className="text-sm"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="edit-contactPhone" className="text-xs">Contact Phone</Label>
+          <Input
+            id="edit-contactPhone"
+            name="contactPhone"
+            defaultValue={location.contactPhone || ""}
+            placeholder="Phone number"
+            className="text-sm"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onSuccess}
+          disabled={isSubmitting}
+          className="text-xs"
+        >
+          Cancel
+        </Button>
+        <Button type="submit" size="sm" disabled={isSubmitting} className="text-xs">
+          {isSubmitting ? "Updating..." : "Update Location"}
+        </Button>
+      </div>
+    </form>
   );
 }
 

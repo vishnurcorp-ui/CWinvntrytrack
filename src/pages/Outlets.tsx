@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navigate, Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MapPin, Plus } from "lucide-react";
+import { ArrowLeft, MapPin, Plus, Edit } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -36,6 +36,7 @@ export default function Outlets() {
   const outlets = useQuery(api.outlets.list);
   const clients = useQuery(api.clients.list);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingOutlet, setEditingOutlet] = useState<any>(null);
 
   if (viewer === undefined || outlets === undefined || clients === undefined) {
     return (
@@ -125,6 +126,7 @@ export default function Outlets() {
                     <TableHead className="text-xs">Location</TableHead>
                     <TableHead className="text-xs">Contact</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
+                    <TableHead className="text-xs">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -157,6 +159,16 @@ export default function Outlets() {
                           {outlet.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingOutlet(outlet)}
+                          className="h-7 px-2"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -165,7 +177,146 @@ export default function Outlets() {
           )}
         </motion.div>
       </main>
+
+      <Dialog open={!!editingOutlet} onOpenChange={() => setEditingOutlet(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Outlet</DialogTitle>
+          </DialogHeader>
+          {editingOutlet && (
+            <EditOutletForm
+              outlet={editingOutlet}
+              onSuccess={() => setEditingOutlet(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function EditOutletForm({ outlet, onSuccess }: { outlet: any; onSuccess: () => void }) {
+  const updateOutlet = useMutation(api.outlets.update);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      id: outlet._id,
+      name: formData.get("name") as string,
+      city: formData.get("city") as string,
+      state: formData.get("state") as string,
+      address: formData.get("address") as string,
+      contactPerson: formData.get("contactPerson") as string,
+      contactPhone: formData.get("contactPhone") as string,
+    };
+
+    try {
+      await updateOutlet(data);
+      toast("Outlet updated successfully");
+      onSuccess();
+    } catch (error: any) {
+      toast(error.message || "Failed to update outlet");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="edit-name" className="text-xs">Outlet Name *</Label>
+        <Input
+          id="edit-name"
+          name="name"
+          defaultValue={outlet.name}
+          placeholder="e.g., Downtown Branch"
+          required
+          className="text-sm"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="edit-city" className="text-xs">City *</Label>
+          <Input
+            id="edit-city"
+            name="city"
+            defaultValue={outlet.city}
+            placeholder="e.g., Bangalore"
+            required
+            className="text-sm"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="edit-state" className="text-xs">State *</Label>
+          <Input
+            id="edit-state"
+            name="state"
+            defaultValue={outlet.state}
+            placeholder="e.g., Karnataka"
+            required
+            className="text-sm"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="edit-address" className="text-xs">Address *</Label>
+        <Input
+          id="edit-address"
+          name="address"
+          defaultValue={outlet.address}
+          placeholder="Full address"
+          required
+          className="text-sm"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="edit-contactPerson" className="text-xs">Contact Person</Label>
+          <Input
+            id="edit-contactPerson"
+            name="contactPerson"
+            defaultValue={outlet.contactPerson || ""}
+            placeholder="Name"
+            className="text-sm"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="edit-contactPhone" className="text-xs">Contact Phone</Label>
+          <Input
+            id="edit-contactPhone"
+            name="contactPhone"
+            defaultValue={outlet.contactPhone || ""}
+            placeholder="Phone number"
+            className="text-sm"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onSuccess}
+          disabled={isSubmitting}
+          className="text-xs"
+        >
+          Cancel
+        </Button>
+        <Button type="submit" size="sm" disabled={isSubmitting} className="text-xs">
+          {isSubmitting ? "Updating..." : "Update Outlet"}
+        </Button>
+      </div>
+    </form>
   );
 }
 
