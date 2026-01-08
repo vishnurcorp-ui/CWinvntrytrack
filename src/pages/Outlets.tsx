@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navigate, Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MapPin, Plus, Edit } from "lucide-react";
+import { ArrowLeft, MapPin, Plus, Edit, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -37,6 +37,18 @@ export default function Outlets() {
   const clients = useQuery(api.clients.list);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOutlet, setEditingOutlet] = useState<any>(null);
+  const removeOutlet = useMutation(api.outlets.remove);
+
+  const handleDelete = async (id: any) => {
+    if (confirm("Are you sure you want to delete this outlet? This will mark it as inactive.")) {
+      try {
+        await removeOutlet({ id });
+        toast("Outlet deleted successfully");
+      } catch (error: any) {
+        toast(error.message || "Failed to delete outlet");
+      }
+    }
+  };
 
   if (viewer === undefined || outlets === undefined || clients === undefined) {
     return (
@@ -160,14 +172,24 @@ export default function Outlets() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEditingOutlet(outlet)}
-                          className="h-7 px-2"
-                        >
-                          <Edit className="h-3 w-3" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingOutlet(outlet)}
+                            className="h-7 px-2"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(outlet._id)}
+                            className="h-7 px-2 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

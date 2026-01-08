@@ -233,6 +233,50 @@ export const update = mutation({
   },
 });
 
+export const remove = mutation({
+  args: { id: v.id("stockMovements") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const movement = await ctx.db.get(args.id);
+    if (!movement) throw new Error("Stock movement not found");
+
+    // Reverse the inventory changes
+    if (movement.movementType === "inbound") {
+      // Reverse: subtract the quantity that was added
+      await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+        productId: movement.productId,
+        locationId: movement.locationId,
+        adjustment: -movement.quantity,
+      });
+    } else if (movement.movementType === "outbound") {
+      // Reverse: add back the quantity that was removed
+      await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+        productId: movement.productId,
+        locationId: movement.locationId,
+        adjustment: movement.quantity,
+      });
+    } else if (movement.movementType === "transfer") {
+      // Reverse: add back to "from" location, remove from "to" location
+      await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+        productId: movement.productId,
+        locationId: movement.fromLocationId!,
+        adjustment: movement.quantity,
+      });
+      await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+        productId: movement.productId,
+        locationId: movement.toLocationId!,
+        adjustment: -movement.quantity,
+      });
+    }
+
+    // Delete the movement record
+    await ctx.db.delete(args.id);
+    return args.id;
+  },
+});
+
 export const updateInventory = internalMutation({
   args: {
     productId: v.id("products"),

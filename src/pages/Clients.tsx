@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navigate, Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Users, Plus, Edit } from "lucide-react";
+import { ArrowLeft, Users, Plus, Edit, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -36,6 +36,18 @@ export default function Clients() {
   const clients = useQuery(api.clients.list);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<any>(null);
+  const removeClient = useMutation(api.clients.remove);
+
+  const handleDelete = async (id: any) => {
+    if (confirm("Are you sure you want to delete this client? This will mark it as inactive.")) {
+      try {
+        await removeClient({ id });
+        toast("Client deleted successfully");
+      } catch (error: any) {
+        toast(error.message || "Failed to delete client");
+      }
+    }
+  };
 
   if (viewer === undefined || clients === undefined) {
     return (
@@ -143,14 +155,24 @@ export default function Clients() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEditingClient(client)}
-                          className="h-7 px-2"
-                        >
-                          <Edit className="h-3 w-3" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingClient(client)}
+                            className="h-7 px-2"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(client._id)}
+                            className="h-7 px-2 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

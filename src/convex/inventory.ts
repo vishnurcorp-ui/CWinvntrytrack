@@ -176,3 +176,14 @@ export const adjustQuantity = mutation({
     }
   },
 });
+
+export const remove = mutation({
+  args: { id: v.id("inventory") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    await ctx.db.delete(args.id);
+    return args.id;
+  },
+});

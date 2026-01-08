@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navigate, Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Package, Edit } from "lucide-react";
+import { ArrowLeft, Plus, Package, Edit, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Id } from "@/convex/_generated/dataModel";
@@ -31,6 +31,7 @@ export default function Products() {
   const inventory = useQuery(api.inventory.list);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  const removeProduct = useMutation(api.products.remove);
 
   if (viewer === undefined || products === undefined || inventory === undefined) {
     return (
@@ -47,6 +48,17 @@ export default function Products() {
   const getProductStock = (productId: Id<"products">) => {
     const productInventory = inventory.filter(inv => inv.productId === productId);
     return productInventory.reduce((sum, inv) => sum + inv.quantity, 0);
+  };
+
+  const handleDelete = async (id: Id<"products">) => {
+    if (confirm("Are you sure you want to delete this product? This will mark it as inactive.")) {
+      try {
+        await removeProduct({ id });
+        toast("Product deleted successfully");
+      } catch (error: any) {
+        toast(error.message || "Failed to delete product");
+      }
+    }
   };
 
   return (
@@ -143,14 +155,24 @@ export default function Products() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEditingProduct(product)}
-                          className="h-7 px-2"
-                        >
-                          <Edit className="h-3 w-3" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingProduct(product)}
+                            className="h-7 px-2"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(product._id)}
+                            className="h-7 px-2 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                     );

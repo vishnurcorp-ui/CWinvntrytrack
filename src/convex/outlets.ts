@@ -124,3 +124,14 @@ export const update = mutation({
     return id;
   },
 });
+
+export const remove = mutation({
+  args: { id: v.id("outlets") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    await ctx.db.patch(args.id, { isActive: false });
+    return args.id;
+  },
+});
