@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuthActions } from "@convex-dev/auth/react";
@@ -15,6 +16,20 @@ import {
   MapPin
 } from "lucide-react";
 import { motion } from "framer-motion";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export default function Dashboard() {
   const { signOut } = useAuthActions();
@@ -108,6 +123,11 @@ function DashboardContent() {
   const stats = useQuery(api.dashboard.getStats);
   const recentOrders = useQuery(api.dashboard.getRecentOrders);
   const lowStockItems = useQuery(api.dashboard.getLowStockSummary);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const selectedOrder = useQuery(
+    api.orders.getById,
+    selectedOrderId ? { id: selectedOrderId as any } : "skip"
+  );
 
   if (stats === undefined || recentOrders === undefined || lowStockItems === undefined) {
     return <div className="text-sm text-muted-foreground">Loading...</div>;
@@ -184,7 +204,8 @@ function DashboardContent() {
               {recentOrders.map((order) => (
                 <div
                   key={order._id}
-                  className="flex items-center justify-between py-2 border-b border-border last:border-0"
+                  onClick={() => setSelectedOrderId(order._id)}
+                  className="flex items-center justify-between py-2 border-b border-border last:border-0 cursor-pointer hover:bg-muted/50 transition-colors px-2 -mx-2 rounded"
                 >
                   <div>
                     <p className="text-sm font-medium">{order.orderNumber}</p>
@@ -227,6 +248,158 @@ function DashboardContent() {
                   </span>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <Dialog open={!!selectedOrderId} onOpenChange={() => setSelectedOrderId(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Order Details</DialogTitle>
+          </DialogHeader>
+          {selectedOrder && <OrderDetailsView order={selectedOrder} />}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function OrderDetailsView({ order }: { order: any }) {
+  const totalAmount = order.items?.reduce(
+    (sum: number, item: any) => sum + (item.totalPrice || 0),
+    0
+  ) || 0;
+
+  return (
+    <div className="space-y-6">
+      {/* Order Header Info */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-3">
+          <div>
+            <p className="text-xs text-muted-foreground">Order Number</p>
+            <p className="text-sm font-medium font-mono">{order.orderNumber}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Client</p>
+            <p className="text-sm font-medium">{order.client?.name}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Outlet</p>
+            <p className="text-sm font-medium">{order.outlet?.name}</p>
+            <p className="text-xs text-muted-foreground">
+              {order.outlet?.address}, {order.outlet?.city}
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <p className="text-xs text-muted-foreground">Status</p>
+            <span className={`text-xs px-2 py-1 inline-block mt-1 capitalize ${
+              order.status === 'delivered' ? 'bg-secondary' :
+              order.status === 'pending' ? 'bg-muted' :
+              order.status === 'cancelled' ? 'bg-destructive/10 text-destructive' :
+              'bg-accent'
+            }`}>
+              {order.status}
+            </span>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Order Date</p>
+            <p className="text-sm">{new Date(order.orderDate).toLocaleDateString()}</p>
+          </div>
+          {order.expectedDeliveryDate && (
+            <div>
+              <p className="text-xs text-muted-foreground">Expected Delivery</p>
+              <p className="text-sm">{new Date(order.expectedDeliveryDate).toLocaleDateString()}</p>
+            </div>
+          )}
+          {order.actualDeliveryDate && (
+            <div>
+              <p className="text-xs text-muted-foreground">Actual Delivery</p>
+              <p className="text-sm">{new Date(order.actualDeliveryDate).toLocaleDateString()}</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Order Items Table */}
+      <div>
+        <h3 className="text-sm font-medium mb-3">Order Items</h3>
+        <div className="border border-border rounded">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs">Product</TableHead>
+                <TableHead className="text-xs">SKU</TableHead>
+                <TableHead className="text-xs text-right">Quantity</TableHead>
+                <TableHead className="text-xs text-right">Unit Price</TableHead>
+                <TableHead className="text-xs text-right">Total</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {order.items?.map((item: any) => (
+                <TableRow key={item._id}>
+                  <TableCell className="text-xs font-medium">
+                    {item.product?.name}
+                  </TableCell>
+                  <TableCell className="text-xs font-mono text-muted-foreground">
+                    {item.product?.sku}
+                  </TableCell>
+                  <TableCell className="text-xs text-right">
+                    {item.quantity} {item.product?.unit}
+                  </TableCell>
+                  <TableCell className="text-xs text-right">
+                    {item.unitPrice ? `$${item.unitPrice.toFixed(2)}` : '-'}
+                  </TableCell>
+                  <TableCell className="text-xs text-right font-medium">
+                    {item.totalPrice ? `$${item.totalPrice.toFixed(2)}` : '-'}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {/* Order Total */}
+      {totalAmount > 0 && (
+        <div className="flex justify-end">
+          <div className="bg-muted p-3 rounded">
+            <p className="text-xs text-muted-foreground">Total Amount</p>
+            <p className="text-lg font-semibold">${totalAmount.toFixed(2)}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Notes */}
+      {order.notes && (
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">Notes</p>
+          <p className="text-sm bg-muted p-3 rounded">{order.notes}</p>
+        </div>
+      )}
+
+      {/* Contact Information */}
+      <div className="border-t border-border pt-4">
+        <h3 className="text-sm font-medium mb-3">Contact Information</h3>
+        <div className="grid grid-cols-2 gap-4 text-xs">
+          <div>
+            <p className="text-muted-foreground">Client Contact</p>
+            <p className="font-medium">{order.client?.contactPerson}</p>
+            <p className="text-muted-foreground">{order.client?.contactPhone}</p>
+            {order.client?.contactEmail && (
+              <p className="text-muted-foreground">{order.client?.contactEmail}</p>
+            )}
+          </div>
+          {order.outlet?.contactPerson && (
+            <div>
+              <p className="text-muted-foreground">Outlet Contact</p>
+              <p className="font-medium">{order.outlet?.contactPerson}</p>
+              {order.outlet?.contactPhone && (
+                <p className="text-muted-foreground">{order.outlet?.contactPhone}</p>
+              )}
             </div>
           )}
         </div>
