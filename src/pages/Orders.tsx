@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navigate, Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ShoppingCart, Plus, X } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Plus, X, Edit } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -35,6 +35,7 @@ export default function Orders() {
   const viewer = useQuery(api.users.currentUser);
   const orders = useQuery(api.orders.list);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<any>(null);
 
   if (viewer === undefined || orders === undefined) {
     return (
@@ -111,6 +112,7 @@ export default function Orders() {
                     <TableHead className="text-xs">Items</TableHead>
                     <TableHead className="text-xs">Order Date</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
+                    <TableHead className="text-xs">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -146,6 +148,16 @@ export default function Orders() {
                           {order.status}
                         </span>
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingOrder(order)}
+                          className="h-7 px-2"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -154,6 +166,20 @@ export default function Orders() {
           )}
         </motion.div>
       </main>
+
+      <Dialog open={!!editingOrder} onOpenChange={() => setEditingOrder(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Order Status</DialogTitle>
+          </DialogHeader>
+          {editingOrder && (
+            <UpdateOrderStatusForm
+              order={editingOrder}
+              onSuccess={() => setEditingOrder(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -367,6 +393,97 @@ function CreateOrderForm({ onSuccess }: { onSuccess: () => void }) {
         </Button>
         <Button type="submit" size="sm" disabled={isSubmitting || !selectedOutlet} className="text-xs">
           {isSubmitting ? "Creating..." : "Create Order"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function UpdateOrderStatusForm({ order, onSuccess }: { order: any; onSuccess: () => void }) {
+  const updateStatus = useMutation(api.orders.updateStatus);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState(order.status);
+
+  const statusOptions = [
+    { value: "pending", label: "Pending", description: "Order has been placed but not yet processed" },
+    { value: "processing", label: "Processing", description: "Order is being prepared" },
+    { value: "packed", label: "Packed", description: "Order has been packed and ready for shipment" },
+    { value: "shipped", label: "Shipped", description: "Order has been dispatched" },
+    { value: "delivered", label: "Delivered", description: "Order has been delivered to customer" },
+    { value: "cancelled", label: "Cancelled", description: "Order has been cancelled" },
+  ];
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      await updateStatus({ id: order._id, status: selectedStatus as any });
+      toast("Order status updated successfully");
+      onSuccess();
+    } catch (error: any) {
+      toast(error.message || "Failed to update order status");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="bg-muted p-3 space-y-1">
+        <p className="text-xs text-muted-foreground">Order Details</p>
+        <p className="text-sm font-medium">{order.orderNumber}</p>
+        <p className="text-xs text-muted-foreground">
+          {order.client?.name} - {order.outlet?.name}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {order.items?.length || 0} item(s)
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="status" className="text-xs">Order Status *</Label>
+        <Select value={selectedStatus} onValueChange={setSelectedStatus} required>
+          <SelectTrigger className="text-sm">
+            <SelectValue placeholder="Select status" />
+          </SelectTrigger>
+          <SelectContent>
+            {statusOptions.map((status) => (
+              <SelectItem key={status.value} value={status.value}>
+                <div className="flex flex-col">
+                  <span className="font-medium capitalize">{status.label}</span>
+                  <span className="text-xs text-muted-foreground">{status.description}</span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          Current status: <span className="capitalize font-medium">{order.status}</span>
+        </p>
+      </div>
+
+      {selectedStatus === "delivered" && (
+        <div className="bg-green-50 border border-green-200 p-3">
+          <p className="text-xs text-green-800">
+            <strong>Note:</strong> Setting status to "Delivered" will automatically record the delivery date and time.
+          </p>
+        </div>
+      )}
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onSuccess}
+          disabled={isSubmitting}
+          className="text-xs"
+        >
+          Cancel
+        </Button>
+        <Button type="submit" size="sm" disabled={isSubmitting} className="text-xs">
+          {isSubmitting ? "Updating..." : "Update Status"}
         </Button>
       </div>
     </form>
