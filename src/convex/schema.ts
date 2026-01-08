@@ -129,6 +129,7 @@ const schema = defineSchema(
       orderId: v.id("orders"),
       productId: v.id("products"),
       quantity: v.number(),
+      unitType: v.optional(v.string()), // e.g., "Sample 250ml", "1L Bottle", "5L Can"
       unitPrice: v.optional(v.number()),
       totalPrice: v.optional(v.number()),
     }).index("by_order", ["orderId"])
@@ -145,6 +146,7 @@ const schema = defineSchema(
         v.literal("transfer")
       ),
       quantity: v.number(),
+      unitType: v.optional(v.string()), // e.g., "Sample 250ml", "1L Bottle", "5L Can"
       fromLocationId: v.optional(v.id("locations")),
       toLocationId: v.optional(v.id("locations")),
       orderId: v.optional(v.id("orders")),

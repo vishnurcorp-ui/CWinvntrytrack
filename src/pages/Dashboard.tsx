@@ -334,6 +334,7 @@ function OrderDetailsView({ order }: { order: any }) {
                 <TableHead className="text-xs">Product</TableHead>
                 <TableHead className="text-xs">SKU</TableHead>
                 <TableHead className="text-xs text-right">Quantity</TableHead>
+                <TableHead className="text-xs">Unit Type</TableHead>
                 <TableHead className="text-xs text-right">Unit Price</TableHead>
                 <TableHead className="text-xs text-right">Total</TableHead>
               </TableRow>
@@ -348,7 +349,10 @@ function OrderDetailsView({ order }: { order: any }) {
                     {item.product?.sku}
                   </TableCell>
                   <TableCell className="text-xs text-right">
-                    {item.quantity} {item.product?.unit}
+                    {item.quantity}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {item.unitType || '-'}
                   </TableCell>
                   <TableCell className="text-xs text-right">
                     {item.unitPrice ? `$${item.unitPrice.toFixed(2)}` : '-'}

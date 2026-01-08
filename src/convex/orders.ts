@@ -131,6 +131,7 @@ export const create = mutation({
       v.object({
         productId: v.id("products"),
         quantity: v.number(),
+        unitType: v.optional(v.string()),
         unitPrice: v.optional(v.number()),
       })
     ),
@@ -168,6 +169,7 @@ export const create = mutation({
         orderId,
         productId: item.productId,
         quantity: item.quantity,
+        unitType: item.unitType,
         unitPrice: item.unitPrice,
         totalPrice,
       });

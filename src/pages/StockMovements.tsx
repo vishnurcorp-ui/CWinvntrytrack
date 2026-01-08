@@ -156,6 +156,7 @@ export default function StockMovements() {
                     <TableHead className="text-xs">Type</TableHead>
                     <TableHead className="text-xs">Product</TableHead>
                     <TableHead className="text-xs">Quantity</TableHead>
+                    <TableHead className="text-xs">Unit Type</TableHead>
                     <TableHead className="text-xs">Location</TableHead>
                     <TableHead className="text-xs">Date</TableHead>
                     <TableHead className="text-xs">Reference</TableHead>
@@ -184,7 +185,10 @@ export default function StockMovements() {
                         <div className="text-muted-foreground">{movement.product?.sku}</div>
                       </TableCell>
                       <TableCell className="text-xs font-medium">
-                        {movement.movementType === 'outbound' ? '-' : '+'}{movement.quantity} {movement.product?.unit}
+                        {movement.movementType === 'outbound' ? '-' : '+'}{movement.quantity}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {movement.unitType || '-'}
                       </TableCell>
                       <TableCell className="text-xs">
                         {movement.movementType === 'transfer' ? (
@@ -380,6 +384,7 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
   const [stockItems, setStockItems] = useState<Array<{
     productId: string;
     quantity: number;
+    unitType?: string;
   }>>([{ productId: "", quantity: 1 }]);
 
   const addItem = () => {
@@ -419,6 +424,7 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
           productId: item.productId as any,
           locationId: selectedLocation as any,
           quantity: item.quantity,
+          unitType: item.unitType,
           referenceNumber,
           notes,
         });
@@ -480,7 +486,7 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="w-32 space-y-1">
+              <div className="w-24 space-y-1">
                 <Label htmlFor={`quantity-${index}`} className="text-xs">Quantity</Label>
                 <Input
                   id={`quantity-${index}`}
@@ -492,6 +498,23 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
                   className="text-xs h-8"
                   required
                 />
+              </div>
+              <div className="w-32 space-y-1">
+                <Label htmlFor={`unitType-${index}`} className="text-xs">Unit Type</Label>
+                <Select
+                  value={item.unitType || ""}
+                  onValueChange={(val) => updateItem(index, "unitType", val)}
+                >
+                  <SelectTrigger className="text-xs h-8">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Sample 250ml" className="text-xs">Sample 250ml</SelectItem>
+                    <SelectItem value="1L Bottle" className="text-xs">1L Bottle</SelectItem>
+                    <SelectItem value="5L Can" className="text-xs">5L Can</SelectItem>
+                    <SelectItem value="20L Drum" className="text-xs">20L Drum</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               {stockItems.length > 1 && (
                 <Button
@@ -557,6 +580,7 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
   const [stockItems, setStockItems] = useState<Array<{
     productId: string;
     quantity: number;
+    unitType?: string;
   }>>([{ productId: "", quantity: 1 }]);
 
   const addItem = () => {
@@ -595,6 +619,7 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
           productId: item.productId as any,
           locationId: selectedLocation as any,
           quantity: item.quantity,
+          unitType: item.unitType,
           notes,
         });
       }
@@ -655,7 +680,7 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="w-32 space-y-1">
+              <div className="w-24 space-y-1">
                 <Label htmlFor={`quantity-out-${index}`} className="text-xs">Quantity</Label>
                 <Input
                   id={`quantity-out-${index}`}
@@ -667,6 +692,23 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
                   className="text-xs h-8"
                   required
                 />
+              </div>
+              <div className="w-32 space-y-1">
+                <Label htmlFor={`unitType-out-${index}`} className="text-xs">Unit Type</Label>
+                <Select
+                  value={item.unitType || ""}
+                  onValueChange={(val) => updateItem(index, "unitType", val)}
+                >
+                  <SelectTrigger className="text-xs h-8">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Sample 250ml" className="text-xs">Sample 250ml</SelectItem>
+                    <SelectItem value="1L Bottle" className="text-xs">1L Bottle</SelectItem>
+                    <SelectItem value="5L Can" className="text-xs">5L Can</SelectItem>
+                    <SelectItem value="20L Drum" className="text-xs">20L Drum</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               {stockItems.length > 1 && (
                 <Button
@@ -732,6 +774,7 @@ function TransferForm({ onSuccess }: { onSuccess: () => void }) {
       fromLocationId: fromLocation as any,
       toLocationId: toLocation as any,
       quantity: Number(formData.get("quantity")),
+      unitType: formData.get("unitType") as string,
       notes: formData.get("notes") as string,
     };
 
@@ -798,18 +841,35 @@ function TransferForm({ onSuccess }: { onSuccess: () => void }) {
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="quantity-transfer" className="text-xs">Quantity *</Label>
-        <Input
-          id="quantity-transfer"
-          name="quantity"
-          type="number"
-          min="1"
-          step="0.01"
-          placeholder="e.g., 25"
-          required
-          className="text-sm"
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="quantity-transfer" className="text-xs">Quantity *</Label>
+          <Input
+            id="quantity-transfer"
+            name="quantity"
+            type="number"
+            min="1"
+            step="0.01"
+            placeholder="e.g., 25"
+            required
+            className="text-sm"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="unitType-transfer" className="text-xs">Unit Type</Label>
+          <Select name="unitType">
+            <SelectTrigger className="text-sm">
+              <SelectValue placeholder="Select type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Sample 250ml">Sample 250ml</SelectItem>
+              <SelectItem value="1L Bottle">1L Bottle</SelectItem>
+              <SelectItem value="5L Can">5L Can</SelectItem>
+              <SelectItem value="20L Drum">20L Drum</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="space-y-2">

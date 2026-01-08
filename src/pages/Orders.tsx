@@ -195,6 +195,7 @@ function CreateOrderForm({ onSuccess }: { onSuccess: () => void }) {
   const [orderItems, setOrderItems] = useState<Array<{
     productId: string;
     quantity: number;
+    unitType?: string;
     unitPrice?: number;
   }>>([{ productId: "", quantity: 1 }]);
 
@@ -232,6 +233,7 @@ function CreateOrderForm({ onSuccess }: { onSuccess: () => void }) {
       items: validItems.map(item => ({
         productId: item.productId as any,
         quantity: item.quantity,
+        unitType: item.unitType,
         unitPrice: item.unitPrice,
       })),
       expectedDeliveryDate: formData.get("expectedDeliveryDate")
@@ -330,6 +332,23 @@ function CreateOrderForm({ onSuccess }: { onSuccess: () => void }) {
                   className="text-xs h-8"
                   required
                 />
+              </div>
+              <div className="w-32 space-y-1">
+                <Label htmlFor={`unitType-${index}`} className="text-xs">Unit Type</Label>
+                <Select
+                  value={item.unitType || ""}
+                  onValueChange={(val) => updateItem(index, "unitType", val)}
+                >
+                  <SelectTrigger className="text-xs h-8">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Sample 250ml" className="text-xs">Sample 250ml</SelectItem>
+                    <SelectItem value="1L Bottle" className="text-xs">1L Bottle</SelectItem>
+                    <SelectItem value="5L Can" className="text-xs">5L Can</SelectItem>
+                    <SelectItem value="20L Drum" className="text-xs">20L Drum</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="w-24 space-y-1">
                 <Label htmlFor={`unitPrice-${index}`} className="text-xs">Unit Price</Label>
