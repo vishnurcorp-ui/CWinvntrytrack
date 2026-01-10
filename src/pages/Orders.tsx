@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navigate, Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ShoppingCart, Plus, X, Edit } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Plus, X, Edit, Settings } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -36,6 +36,7 @@ export default function Orders() {
   const orders = useQuery(api.orders.list);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<any>(null);
+  const [editingOrderDetails, setEditingOrderDetails] = useState<any>(null);
 
   if (viewer === undefined || orders === undefined) {
     return (
@@ -149,14 +150,26 @@ export default function Orders() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEditingOrder(order)}
-                          className="h-7 px-2"
-                        >
-                          <Edit className="h-3 w-3" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingOrderDetails(order)}
+                            className="h-7 px-2"
+                            title="Edit Order Details"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingOrder(order)}
+                            className="h-7 px-2"
+                            title="Update Status"
+                          >
+                            <Settings className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -166,6 +179,20 @@ export default function Orders() {
           )}
         </motion.div>
       </main>
+
+      <Dialog open={!!editingOrderDetails} onOpenChange={() => setEditingOrderDetails(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Order Details</DialogTitle>
+          </DialogHeader>
+          {editingOrderDetails && (
+            <EditOrderForm
+              order={editingOrderDetails}
+              onSuccess={() => setEditingOrderDetails(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!editingOrder} onOpenChange={() => setEditingOrder(null)}>
         <DialogContent>
@@ -503,6 +530,229 @@ function UpdateOrderStatusForm({ order, onSuccess }: { order: any; onSuccess: ()
         </Button>
         <Button type="submit" size="sm" disabled={isSubmitting} className="text-xs">
           {isSubmitting ? "Updating..." : "Update Status"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function EditOrderForm({ order, onSuccess }: { order: any; onSuccess: () => void }) {
+  const updateOrder = useMutation(api.orders.update);
+  const products = useQuery(api.products.list);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [orderItems, setOrderItems] = useState<Array<{
+    productId: string;
+    quantity: number;
+    unitType?: string;
+    unitPrice?: number;
+  }>>(
+    order.items?.map((item: any) => ({
+      productId: item.productId,
+      quantity: item.quantity,
+      unitType: item.unitType,
+      unitPrice: item.unitPrice,
+    })) || [{ productId: "", quantity: 1 }]
+  );
+
+  const addItem = () => {
+    setOrderItems([...orderItems, { productId: "", quantity: 1 }]);
+  };
+
+  const removeItem = (index: number) => {
+    setOrderItems(orderItems.filter((_, i) => i !== index));
+  };
+
+  const updateItem = (index: number, field: string, value: any) => {
+    const updated = [...orderItems];
+    updated[index] = { ...updated[index], [field]: value };
+    setOrderItems(updated);
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    const validItems = orderItems.filter(item => item.productId && item.quantity > 0);
+
+    if (validItems.length === 0) {
+      toast("Please add at least one product");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      id: order._id,
+      items: validItems.map(item => ({
+        productId: item.productId as any,
+        quantity: item.quantity,
+        unitType: item.unitType,
+        unitPrice: item.unitPrice,
+      })),
+      expectedDeliveryDate: formData.get("expectedDeliveryDate")
+        ? new Date(formData.get("expectedDeliveryDate") as string).getTime()
+        : undefined,
+      notes: formData.get("notes") as string,
+    };
+
+    try {
+      await updateOrder(data);
+      toast("Order updated successfully");
+      onSuccess();
+    } catch (error: any) {
+      toast(error.message || "Failed to update order");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="bg-muted p-3 space-y-1">
+        <p className="text-xs text-muted-foreground">Order Information</p>
+        <p className="text-sm font-medium">{order.orderNumber}</p>
+        <p className="text-xs text-muted-foreground">
+          {order.client?.name} - {order.outlet?.name}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Current Status: <span className="capitalize font-medium">{order.status}</span>
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-xs">Order Items *</Label>
+          <Button type="button" size="sm" variant="outline" onClick={addItem} className="h-7 text-xs">
+            <Plus className="h-3 w-3 mr-1" />
+            Add Product
+          </Button>
+        </div>
+        <div className="space-y-2 max-h-60 overflow-y-auto border border-border p-2">
+          {orderItems.map((item, index) => (
+            <div key={index} className="flex gap-2 items-end">
+              <div className="flex-1 space-y-1">
+                <Label htmlFor={`edit-product-${index}`} className="text-xs">Product</Label>
+                <Select
+                  value={item.productId}
+                  onValueChange={(val) => updateItem(index, "productId", val)}
+                  required
+                >
+                  <SelectTrigger className="text-xs h-8">
+                    <SelectValue placeholder="Select product" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products?.filter(p => p.isActive).map((product) => (
+                      <SelectItem key={product._id} value={product._id} className="text-xs">
+                        {product.name} ({product.sku})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-24 space-y-1">
+                <Label htmlFor={`edit-quantity-${index}`} className="text-xs">Quantity</Label>
+                <Input
+                  id={`edit-quantity-${index}`}
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  value={item.quantity}
+                  onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
+                  className="text-xs h-8"
+                  required
+                />
+              </div>
+              <div className="w-32 space-y-1">
+                <Label htmlFor={`edit-unitType-${index}`} className="text-xs">Unit Type</Label>
+                <Select
+                  value={item.unitType || ""}
+                  onValueChange={(val) => updateItem(index, "unitType", val)}
+                >
+                  <SelectTrigger className="text-xs h-8">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Sample 250ml" className="text-xs">Sample 250ml</SelectItem>
+                    <SelectItem value="1L Bottle" className="text-xs">1L Bottle</SelectItem>
+                    <SelectItem value="5L Can" className="text-xs">5L Can</SelectItem>
+                    <SelectItem value="20L Drum" className="text-xs">20L Drum</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-24 space-y-1">
+                <Label htmlFor={`edit-unitPrice-${index}`} className="text-xs">Unit Price</Label>
+                <Input
+                  id={`edit-unitPrice-${index}`}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={item.unitPrice || ""}
+                  onChange={(e) => updateItem(index, "unitPrice", e.target.value ? Number(e.target.value) : undefined)}
+                  placeholder="Optional"
+                  className="text-xs h-8"
+                />
+              </div>
+              {orderItems.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeItem(index)}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="edit-expectedDeliveryDate" className="text-xs">Expected Delivery Date</Label>
+        <Input
+          id="edit-expectedDeliveryDate"
+          name="expectedDeliveryDate"
+          type="date"
+          defaultValue={
+            order.expectedDeliveryDate
+              ? new Date(order.expectedDeliveryDate).toISOString().split('T')[0]
+              : ""
+          }
+          className="text-sm"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="edit-notes" className="text-xs">Notes</Label>
+        <Input
+          id="edit-notes"
+          name="notes"
+          defaultValue={order.notes || ""}
+          placeholder="Additional information"
+          className="text-sm"
+        />
+      </div>
+
+      <div className="bg-yellow-50 border border-yellow-200 p-3">
+        <p className="text-xs text-yellow-800">
+          <strong>Note:</strong> This will update the order items, quantities, unit types, and prices. The order status will remain unchanged.
+        </p>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onSuccess}
+          disabled={isSubmitting}
+          className="text-xs"
+        >
+          Cancel
+        </Button>
+        <Button type="submit" size="sm" disabled={isSubmitting} className="text-xs">
+          {isSubmitting ? "Updating..." : "Update Order"}
         </Button>
       </div>
     </form>

@@ -183,6 +183,66 @@ export const create = mutation({
   },
 });
 
+export const update = mutation({
+  args: {
+    id: v.id("orders"),
+    items: v.array(
+      v.object({
+        productId: v.id("products"),
+        quantity: v.number(),
+        unitType: v.optional(v.string()),
+        unitPrice: v.optional(v.number()),
+      })
+    ),
+    expectedDeliveryDate: v.optional(v.number()),
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const order = await ctx.db.get(args.id);
+    if (!order) throw new Error("Order not found");
+
+    // Delete existing order items
+    const existingItems = await ctx.db
+      .query("orderItems")
+      .withIndex("by_order", (q) => q.eq("orderId", args.id))
+      .collect();
+
+    for (const item of existingItems) {
+      await ctx.db.delete(item._id);
+    }
+
+    // Insert new order items
+    let totalAmount = 0;
+    for (const item of args.items) {
+      const totalPrice = item.unitPrice
+        ? item.unitPrice * item.quantity
+        : undefined;
+      if (totalPrice) totalAmount += totalPrice;
+
+      await ctx.db.insert("orderItems", {
+        orderId: args.id,
+        productId: item.productId,
+        quantity: item.quantity,
+        unitType: item.unitType,
+        unitPrice: item.unitPrice,
+        totalPrice,
+      });
+    }
+
+    // Update order
+    await ctx.db.patch(args.id, {
+      expectedDeliveryDate: args.expectedDeliveryDate,
+      notes: args.notes,
+      totalAmount: totalAmount > 0 ? totalAmount : undefined,
+    });
+
+    return args.id;
+  },
+});
+
 export const updateStatus = mutation({
   args: {
     id: v.id("orders"),
