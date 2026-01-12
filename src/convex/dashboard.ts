@@ -13,7 +13,7 @@ export const getStats = query({
     let lowStockCount = 0;
     for (const item of inventory) {
       const product = await ctx.db.get(item.productId);
-      if (product && item.quantity <= product.reorderLevel) {
+      if (product && item.quantity <= 10) {
         lowStockCount++;
       }
     }
@@ -58,7 +58,7 @@ export const getLowStockSummary = query({
     const lowStockItems = [];
     for (const item of inventory) {
       const product = await ctx.db.get(item.productId);
-      if (product && item.quantity <= product.reorderLevel) {
+      if (product && item.quantity <= 10) {
         const location = await ctx.db.get(item.locationId);
         lowStockItems.push({
           ...item,
