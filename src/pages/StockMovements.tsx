@@ -185,7 +185,7 @@ export default function StockMovements() {
                         <div className="text-muted-foreground">{movement.product?.sku}</div>
                       </TableCell>
                       <TableCell className="text-xs font-medium">
-                        {movement.movementType === 'outbound' ? '-' : '+'}{movement.quantity}L
+                        {movement.movementType === 'outbound' ? '-' : '+'}{movement.quantity}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {movement.unitType || '-'}
@@ -321,7 +321,7 @@ function EditMovementForm({ movement, onSuccess }: { movement: any; onSuccess: (
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="edit-quantity" className="text-xs">Quantity (Liters) *</Label>
+        <Label htmlFor="edit-quantity" className="text-xs">Quantity *</Label>
         <Input
           id="edit-quantity"
           name="quantity"
@@ -329,12 +329,12 @@ function EditMovementForm({ movement, onSuccess }: { movement: any; onSuccess: (
           min="1"
           step="1"
           defaultValue={movement.quantity}
-          placeholder="Enter quantity in liters"
+          placeholder="Enter quantity"
           required
           className="text-sm"
         />
         <p className="text-xs text-muted-foreground">
-          Original quantity: {movement.quantity}L
+          Original quantity: {movement.quantity}
         </p>
       </div>
 
@@ -487,7 +487,7 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
                 </Select>
               </div>
               <div className="w-24 space-y-1">
-                <Label htmlFor={`quantity-${index}`} className="text-xs">Qty (L)</Label>
+                <Label htmlFor={`quantity-${index}`} className="text-xs">Quantity</Label>
                 <Input
                   id={`quantity-${index}`}
                   type="number"
@@ -681,7 +681,7 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
                 </Select>
               </div>
               <div className="w-24 space-y-1">
-                <Label htmlFor={`quantity-out-${index}`} className="text-xs">Qty (L)</Label>
+                <Label htmlFor={`quantity-out-${index}`} className="text-xs">Quantity</Label>
                 <Input
                   id={`quantity-out-${index}`}
                   type="number"
@@ -843,7 +843,7 @@ function TransferForm({ onSuccess }: { onSuccess: () => void }) {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="quantity-transfer" className="text-xs">Quantity (Liters) *</Label>
+          <Label htmlFor="quantity-transfer" className="text-xs">Quantity *</Label>
           <Input
             id="quantity-transfer"
             name="quantity"
