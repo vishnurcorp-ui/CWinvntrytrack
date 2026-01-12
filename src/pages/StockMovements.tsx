@@ -185,7 +185,7 @@ export default function StockMovements() {
                         <div className="text-muted-foreground">{movement.product?.sku}</div>
                       </TableCell>
                       <TableCell className="text-xs font-medium">
-                        {movement.movementType === 'outbound' ? '-' : '+'}{movement.quantity}
+                        {movement.movementType === 'outbound' ? '-' : '+'}{movement.quantity}L
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {movement.unitType || '-'}
@@ -321,20 +321,20 @@ function EditMovementForm({ movement, onSuccess }: { movement: any; onSuccess: (
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="edit-quantity" className="text-xs">Quantity *</Label>
+        <Label htmlFor="edit-quantity" className="text-xs">Quantity (Liters) *</Label>
         <Input
           id="edit-quantity"
           name="quantity"
           type="number"
-          min="0.01"
-          step="0.01"
+          min="1"
+          step="1"
           defaultValue={movement.quantity}
-          placeholder="Enter quantity"
+          placeholder="Enter quantity in liters"
           required
           className="text-sm"
         />
         <p className="text-xs text-muted-foreground">
-          Original quantity: {movement.quantity} {movement.product?.unit}
+          Original quantity: {movement.quantity}L
         </p>
       </div>
 
@@ -487,12 +487,12 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
                 </Select>
               </div>
               <div className="w-24 space-y-1">
-                <Label htmlFor={`quantity-${index}`} className="text-xs">Quantity</Label>
+                <Label htmlFor={`quantity-${index}`} className="text-xs">Qty (L)</Label>
                 <Input
                   id={`quantity-${index}`}
                   type="number"
                   min="1"
-                  step="0.01"
+                  step="1"
                   value={item.quantity}
                   onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
                   className="text-xs h-8"
@@ -681,12 +681,12 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
                 </Select>
               </div>
               <div className="w-24 space-y-1">
-                <Label htmlFor={`quantity-out-${index}`} className="text-xs">Quantity</Label>
+                <Label htmlFor={`quantity-out-${index}`} className="text-xs">Qty (L)</Label>
                 <Input
                   id={`quantity-out-${index}`}
                   type="number"
                   min="1"
-                  step="0.01"
+                  step="1"
                   value={item.quantity}
                   onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
                   className="text-xs h-8"
@@ -843,13 +843,13 @@ function TransferForm({ onSuccess }: { onSuccess: () => void }) {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="quantity-transfer" className="text-xs">Quantity *</Label>
+          <Label htmlFor="quantity-transfer" className="text-xs">Quantity (Liters) *</Label>
           <Input
             id="quantity-transfer"
             name="quantity"
             type="number"
             min="1"
-            step="0.01"
+            step="1"
             placeholder="e.g., 25"
             required
             className="text-sm"
