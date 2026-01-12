@@ -91,7 +91,7 @@ export const getLowStock = query({
 
     for (const item of allInventory) {
       const product = await ctx.db.get(item.productId);
-      if (product && item.quantity <= product.reorderLevel) {
+      if (product && item.quantity <= 10) {
         const location = await ctx.db.get(item.locationId);
         lowStockItems.push({
           ...item,
