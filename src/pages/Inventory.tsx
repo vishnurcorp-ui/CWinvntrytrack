@@ -143,10 +143,10 @@ export default function Inventory() {
                           </div>
                         </TableCell>
                         <TableCell className="text-xs font-medium">
-                          {item.quantity} {item.product?.unit}
+                          {item.quantity}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {item.product?.reorderLevel} {item.product?.unit}
+                          {item.product?.reorderLevel}
                         </TableCell>
                         <TableCell>
                           {isOutOfStock ? (
@@ -247,7 +247,7 @@ function AdjustInventoryForm({ item, onSuccess }: { item: any; onSuccess: () => 
         <p className="text-xs text-muted-foreground">Product</p>
         <p className="text-sm font-medium">{item.product?.name} ({item.product?.sku})</p>
         <p className="text-xs text-muted-foreground">
-          {item.location?.name} - Current: {item.quantity} {item.product?.unit}
+          {item.location?.name} - Current: {item.quantity}
         </p>
       </div>
 
