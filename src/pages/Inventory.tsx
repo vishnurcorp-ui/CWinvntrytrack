@@ -265,14 +265,14 @@ function AdjustInventoryForm({ item, onSuccess }: { item: any; onSuccess: () => 
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="amount" className="text-xs">Amount *</Label>
+        <Label htmlFor="amount" className="text-xs">Quantity *</Label>
         <Input
           id="amount"
           name="amount"
           type="number"
-          min="0.01"
-          step="0.01"
-          placeholder="Enter amount"
+          min="1"
+          step="1"
+          placeholder="Enter quantity"
           required
           className="text-sm"
         />
