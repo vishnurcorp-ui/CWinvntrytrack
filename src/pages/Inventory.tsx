@@ -214,6 +214,7 @@ export default function Inventory() {
 
 function AdjustInventoryForm({ item, onSuccess }: { item: any; onSuccess: () => void }) {
   const adjustQuantity = useMutation(api.inventory.adjustQuantity);
+  const updateProduct = useMutation(api.products.update);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [adjustmentType, setAdjustmentType] = useState<"add" | "subtract">("add");
 
@@ -225,13 +226,24 @@ function AdjustInventoryForm({ item, onSuccess }: { item: any; onSuccess: () => 
     const amount = Number(formData.get("amount"));
     const adjustment = adjustmentType === "add" ? amount : -amount;
     const reason = formData.get("reason") as string;
+    const newReorderLevel = Number(formData.get("reorderLevel"));
 
     try {
+      // Update inventory quantity
       await adjustQuantity({
         productId: item.productId,
         locationId: item.locationId,
         adjustment,
       });
+
+      // Update reorder level if changed
+      if (newReorderLevel !== item.product?.reorderLevel) {
+        await updateProduct({
+          id: item.productId,
+          reorderLevel: newReorderLevel,
+        });
+      }
+
       toast("Inventory adjusted successfully");
       onSuccess();
     } catch (error: any) {
@@ -287,6 +299,24 @@ function AdjustInventoryForm({ item, onSuccess }: { item: any; onSuccess: () => 
           required
           className="text-sm"
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="reorderLevel" className="text-xs">Current Level (Reorder Threshold) *</Label>
+        <Input
+          id="reorderLevel"
+          name="reorderLevel"
+          type="number"
+          min="0"
+          step="1"
+          defaultValue={item.product?.reorderLevel || 0}
+          placeholder="Enter reorder level"
+          required
+          className="text-sm"
+        />
+        <p className="text-xs text-muted-foreground">
+          Set the threshold level for when to reorder this product
+        </p>
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
