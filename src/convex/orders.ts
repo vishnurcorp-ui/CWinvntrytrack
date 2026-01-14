@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { internal } from "./_generated/api";
 
 export const list = query({
   args: {},
@@ -254,15 +255,54 @@ export const updateStatus = mutation({
       v.literal("delivered"),
       v.literal("cancelled")
     ),
+    locationId: v.optional(v.id("locations")),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
+    const order = await ctx.db.get(args.id);
+    if (!order) throw new Error("Order not found");
+
     const updates: any = { status: args.status };
 
-    if (args.status === "delivered") {
+    // When marking as delivered, deduct inventory and create stock movements
+    if (args.status === "delivered" && order.status !== "delivered") {
       updates.actualDeliveryDate = Date.now();
+
+      // Get location ID (either from args or throw error)
+      if (!args.locationId) {
+        throw new Error("Location is required when marking order as delivered");
+      }
+
+      // Get all order items
+      const orderItems = await ctx.db
+        .query("orderItems")
+        .withIndex("by_order", (q) => q.eq("orderId", args.id))
+        .collect();
+
+      // Create outbound stock movements and deduct inventory for each item
+      for (const item of orderItems) {
+        // Insert stock movement record
+        await ctx.db.insert("stockMovements", {
+          productId: item.productId,
+          locationId: args.locationId,
+          movementType: "outbound" as const,
+          quantity: item.quantity,
+          unitType: item.unitType,
+          orderId: args.id,
+          notes: `Order ${order.orderNumber} delivered`,
+          performedBy: userId,
+          movementDate: Date.now(),
+        });
+
+        // Update inventory (deduct quantity)
+        await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+          productId: item.productId,
+          locationId: args.locationId,
+          adjustment: -item.quantity,
+        });
+      }
     }
 
     await ctx.db.patch(args.id, updates);

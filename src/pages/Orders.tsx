@@ -447,8 +447,10 @@ function CreateOrderForm({ onSuccess }: { onSuccess: () => void }) {
 
 function UpdateOrderStatusForm({ order, onSuccess }: { order: any; onSuccess: () => void }) {
   const updateStatus = useMutation(api.orders.updateStatus);
+  const locations = useQuery(api.locations.list);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState(order.status);
+  const [selectedLocation, setSelectedLocation] = useState("");
 
   const statusOptions = [
     { value: "pending", label: "Pending", description: "Order has been placed but not yet processed" },
@@ -463,8 +465,19 @@ function UpdateOrderStatusForm({ order, onSuccess }: { order: any; onSuccess: ()
     e.preventDefault();
     setIsSubmitting(true);
 
+    // Validate location is selected when marking as delivered
+    if (selectedStatus === "delivered" && !selectedLocation) {
+      toast("Please select a warehouse location to deduct inventory from");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      await updateStatus({ id: order._id, status: selectedStatus as any });
+      await updateStatus({
+        id: order._id,
+        status: selectedStatus as any,
+        locationId: selectedLocation ? selectedLocation as any : undefined,
+      });
       toast("Order status updated successfully");
       onSuccess();
     } catch (error: any) {
@@ -510,11 +523,36 @@ function UpdateOrderStatusForm({ order, onSuccess }: { order: any; onSuccess: ()
       </div>
 
       {selectedStatus === "delivered" && (
-        <div className="bg-green-50 border border-green-200 p-3">
-          <p className="text-xs text-green-800">
-            <strong>Note:</strong> Setting status to "Delivered" will automatically record the delivery date and time.
-          </p>
-        </div>
+        <>
+          <div className="space-y-2">
+            <Label htmlFor="location" className="text-xs">Warehouse Location *</Label>
+            <Select value={selectedLocation} onValueChange={setSelectedLocation} required>
+              <SelectTrigger className="text-sm">
+                <SelectValue placeholder="Select warehouse to deduct inventory from" />
+              </SelectTrigger>
+              <SelectContent>
+                {locations?.filter(l => l.isActive).map((location) => (
+                  <SelectItem key={location._id} value={location._id}>
+                    {location.name} - {location.city}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Select the warehouse from which inventory will be deducted
+            </p>
+          </div>
+          <div className="bg-green-50 border border-green-200 p-3">
+            <p className="text-xs text-green-800">
+              <strong>Note:</strong> Setting status to "Delivered" will:
+            </p>
+            <ul className="text-xs text-green-800 list-disc list-inside mt-1">
+              <li>Record the delivery date and time</li>
+              <li>Create outbound stock movements for all order items</li>
+              <li>Deduct inventory quantities from the selected warehouse</li>
+            </ul>
+          </div>
+        </>
       )}
 
       <div className="flex justify-end gap-2 pt-4">
