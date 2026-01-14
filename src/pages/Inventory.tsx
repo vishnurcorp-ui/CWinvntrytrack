@@ -111,7 +111,7 @@ export default function Inventory() {
                     <TableHead className="text-xs">Product</TableHead>
                     <TableHead className="text-xs">Location</TableHead>
                     <TableHead className="text-xs">Quantity</TableHead>
-                    <TableHead className="text-xs">Current Level</TableHead>
+                    <TableHead className="text-xs">Current Level (Reorder Threshold)</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
                     <TableHead className="text-xs">Actions</TableHead>
                   </TableRow>
