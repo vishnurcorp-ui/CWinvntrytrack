@@ -6,7 +6,8 @@ export const getStats = query({
     // Limit products query for faster stats
     const products = await ctx.db.query("products").take(200);
     const inventory = await ctx.db.query("inventory").take(100);
-    const orders = await ctx.db.query("orders").take(50);
+    // Get recent orders in descending order to include the latest ones
+    const orders = await ctx.db.query("orders").order("desc").take(100);
 
     const activeProducts = products.filter((p) => p.isActive).length;
     const totalStock = inventory.reduce((sum, item) => sum + item.quantity, 0);
@@ -28,7 +29,8 @@ export const getStats = query({
 export const getRecentOrders = query({
   args: {},
   handler: async (ctx) => {
-    const orders = await ctx.db.query("orders").take(5);
+    // Get most recent orders first (descending by creation time)
+    const orders = await ctx.db.query("orders").order("desc").take(5);
 
     const enriched = await Promise.all(
       orders.map(async (order) => {
