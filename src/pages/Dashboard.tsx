@@ -384,39 +384,109 @@ function OrderDetailsView({ order }: { order: any }) {
               <TableRow>
                 <TableHead className="text-xs">Product</TableHead>
                 <TableHead className="text-xs">SKU</TableHead>
-                <TableHead className="text-xs text-right">Quantity</TableHead>
+                <TableHead className="text-xs text-right">Ordered</TableHead>
+                {(order.status === 'partially_delivered' || order.status === 'delivered') && (
+                  <>
+                    <TableHead className="text-xs text-right">Delivered</TableHead>
+                    <TableHead className="text-xs text-right">Remaining</TableHead>
+                  </>
+                )}
                 <TableHead className="text-xs">Unit Type</TableHead>
                 <TableHead className="text-xs text-right">Unit Price</TableHead>
                 <TableHead className="text-xs text-right">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {order.items?.map((item: any) => (
-                <TableRow key={item._id}>
-                  <TableCell className="text-xs font-medium">
-                    {item.product?.name}
-                  </TableCell>
-                  <TableCell className="text-xs font-mono text-muted-foreground">
-                    {item.product?.sku}
-                  </TableCell>
-                  <TableCell className="text-xs text-right">
-                    {item.quantity}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {item.unitType || '-'}
-                  </TableCell>
-                  <TableCell className="text-xs text-right">
-                    {item.unitPrice ? `$${item.unitPrice.toFixed(2)}` : '-'}
-                  </TableCell>
-                  <TableCell className="text-xs text-right font-medium">
-                    {item.totalPrice ? `$${item.totalPrice.toFixed(2)}` : '-'}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {order.items?.map((item: any) => {
+                const delivered = item.deliveredQuantity || 0;
+                const remaining = item.quantity - delivered;
+                return (
+                  <TableRow key={item._id}>
+                    <TableCell className="text-xs font-medium">
+                      {item.product?.name}
+                    </TableCell>
+                    <TableCell className="text-xs font-mono text-muted-foreground">
+                      {item.product?.sku}
+                    </TableCell>
+                    <TableCell className="text-xs text-right">
+                      {item.quantity}
+                    </TableCell>
+                    {(order.status === 'partially_delivered' || order.status === 'delivered') && (
+                      <>
+                        <TableCell className="text-xs text-right text-green-600 font-medium">
+                          {delivered}
+                        </TableCell>
+                        <TableCell className={`text-xs text-right font-medium ${remaining > 0 ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                          {remaining}
+                        </TableCell>
+                      </>
+                    )}
+                    <TableCell className="text-xs text-muted-foreground">
+                      {item.unitType || '-'}
+                    </TableCell>
+                    <TableCell className="text-xs text-right">
+                      {item.unitPrice ? `$${item.unitPrice.toFixed(2)}` : '-'}
+                    </TableCell>
+                    <TableCell className="text-xs text-right font-medium">
+                      {item.totalPrice ? `$${item.totalPrice.toFixed(2)}` : '-'}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
       </div>
+
+      {/* Delivery History */}
+      {order.deliveries && order.deliveries.length > 0 && (
+        <div>
+          <h3 className="text-sm font-medium mb-3">Delivery History</h3>
+          <div className="space-y-3">
+            {order.deliveries.map((delivery: any) => (
+              <div key={delivery._id} className="border border-border rounded p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <p className="text-sm font-medium">Delivery #{delivery.deliveryNumber}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(delivery.deliveryDate).toLocaleDateString()} at {new Date(delivery.deliveryDate).toLocaleTimeString()}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Location: {delivery.location?.name}
+                    </p>
+                    {delivery.deliveredByUser && (
+                      <p className="text-xs text-muted-foreground">
+                        By: {delivery.deliveredByUser.name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium mb-1">Items Delivered:</p>
+                  {delivery.items.map((deliveryItem: any) => {
+                    const orderItem = order.items?.find((oi: any) => oi._id === deliveryItem.orderItemId);
+                    return (
+                      <div key={deliveryItem.orderItemId} className="flex items-center justify-between text-xs bg-muted/50 p-2 rounded">
+                        <span>{orderItem?.product?.name}</span>
+                        <span className="font-medium text-green-600">
+                          {deliveryItem.quantityDelivered} {orderItem?.product?.unit || orderItem?.unitType}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {delivery.notes && (
+                  <div className="mt-2 pt-2 border-t border-border">
+                    <p className="text-xs text-muted-foreground">Notes: {delivery.notes}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Order Total */}
       {totalAmount > 0 && (
