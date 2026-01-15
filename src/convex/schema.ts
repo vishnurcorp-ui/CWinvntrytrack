@@ -91,6 +91,7 @@ const schema = defineSchema(
     outlets: defineTable({
       clientId: v.id("clients"),
       name: v.string(),
+      code: v.optional(v.string()), // Short code for order numbers (e.g., "MPC", "KRA")
       state: v.string(),
       city: v.string(),
       address: v.string(),
@@ -98,7 +99,8 @@ const schema = defineSchema(
       contactPhone: v.optional(v.string()),
       isActive: v.boolean(),
     }).index("by_client", ["clientId"])
-      .index("by_state", ["state"]),
+      .index("by_state", ["state"])
+      .index("by_code", ["code"]),
 
     // Orders
     orders: defineTable({

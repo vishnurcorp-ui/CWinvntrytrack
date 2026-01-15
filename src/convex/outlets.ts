@@ -71,6 +71,7 @@ export const create = mutation({
   args: {
     clientId: v.id("clients"),
     name: v.string(),
+    code: v.optional(v.string()),
     state: v.string(),
     city: v.string(),
     address: v.string(),
@@ -84,6 +85,7 @@ export const create = mutation({
     return await ctx.db.insert("outlets", {
       clientId: args.clientId,
       name: args.name,
+      code: args.code,
       state: args.state,
       city: args.city,
       address: args.address,
@@ -98,6 +100,7 @@ export const update = mutation({
   args: {
     id: v.id("outlets"),
     name: v.optional(v.string()),
+    code: v.optional(v.string()),
     state: v.optional(v.string()),
     city: v.optional(v.string()),
     address: v.optional(v.string()),
@@ -113,6 +116,7 @@ export const update = mutation({
     const updateData: any = {};
 
     if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.code !== undefined) updateData.code = updates.code;
     if (updates.state !== undefined) updateData.state = updates.state;
     if (updates.city !== undefined) updateData.city = updates.city;
     if (updates.address !== undefined) updateData.address = updates.address;

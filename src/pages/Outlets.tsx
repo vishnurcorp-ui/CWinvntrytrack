@@ -154,6 +154,7 @@ export default function Outlets({ embedded = false }: { embedded?: boolean }) {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-xs">Outlet Name</TableHead>
+                    <TableHead className="text-xs">Code</TableHead>
                     <TableHead className="text-xs">Client</TableHead>
                     <TableHead className="text-xs">Location</TableHead>
                     <TableHead className="text-xs">Contact</TableHead>
@@ -166,6 +167,9 @@ export default function Outlets({ embedded = false }: { embedded?: boolean }) {
                     <TableRow key={outlet._id}>
                       <TableCell className="text-xs font-medium">
                         {outlet.name}
+                      </TableCell>
+                      <TableCell className="text-xs font-mono">
+                        {outlet.code || <span className="text-muted-foreground">Auto</span>}
                       </TableCell>
                       <TableCell className="text-xs">
                         {outlet.client?.name}
@@ -269,9 +273,11 @@ function EditOutletForm({ outlet, onSuccess }: { outlet: any; onSuccess: () => v
     setIsSubmitting(true);
 
     const formData = new FormData(e.currentTarget);
+    const code = (formData.get("code") as string)?.trim().toUpperCase();
     const data = {
       id: outlet._id,
       name: formData.get("name") as string,
+      code: code || undefined,
       city: formData.get("city") as string,
       state: formData.get("state") as string,
       address: formData.get("address") as string,
@@ -302,6 +308,22 @@ function EditOutletForm({ outlet, onSuccess }: { outlet: any; onSuccess: () => v
           required
           className="text-sm"
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="edit-code" className="text-xs">Outlet Code</Label>
+        <Input
+          id="edit-code"
+          name="code"
+          defaultValue={outlet.code || ""}
+          placeholder="e.g., MPC, KRA (2-4 letters)"
+          maxLength={4}
+          className="text-sm uppercase"
+          style={{ textTransform: 'uppercase' }}
+        />
+        <p className="text-xs text-muted-foreground">
+          Short code for order numbers. Leave empty to auto-generate.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -401,9 +423,11 @@ function AddOutletForm({
     setIsSubmitting(true);
 
     const formData = new FormData(e.currentTarget);
+    const code = (formData.get("code") as string)?.trim().toUpperCase();
     const data = {
       clientId: selectedClient as any,
       name: formData.get("name") as string,
+      code: code || undefined,
       state: formData.get("state") as string,
       city: formData.get("city") as string,
       address: formData.get("address") as string,
@@ -449,6 +473,21 @@ function AddOutletForm({
           required
           className="text-sm"
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="code" className="text-xs">Outlet Code</Label>
+        <Input
+          id="code"
+          name="code"
+          placeholder="e.g., MPC, KRA (2-4 letters)"
+          maxLength={4}
+          className="text-sm uppercase"
+          style={{ textTransform: 'uppercase' }}
+        />
+        <p className="text-xs text-muted-foreground">
+          Short code for order numbers. Leave empty to auto-generate.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">

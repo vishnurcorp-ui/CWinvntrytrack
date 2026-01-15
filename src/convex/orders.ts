@@ -165,11 +165,33 @@ export const create = mutation({
     const outlet = await ctx.db.get(args.outletId);
     if (!outlet) throw new Error("Outlet not found");
 
-    // Generate order number with date: ORD-YYYYMMDD-XXX
+    // Generate order number: OUTLETCODE-DDMMYY-XX
+    // Example: MPC-150126-01 (MPC Kora, 15th Jan 2026, 1st order)
     const now = new Date();
-    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
-    const timeStr = now.getTime().toString().slice(-3); // Last 3 digits of timestamp for uniqueness
-    const orderNumber = `ORD-${dateStr}-${timeStr}`;
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = String(now.getFullYear()).slice(-2);
+    const dateStr = `${day}${month}${year}`; // DDMMYY
+
+    // Get outlet code or generate from name
+    const outletCode = outlet.code || outlet.name.substring(0, 3).toUpperCase();
+
+    // Get today's start and end timestamps
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const todayEnd = todayStart + 24 * 60 * 60 * 1000;
+
+    // Count orders for this outlet today
+    const todayOrders = await ctx.db
+      .query("orders")
+      .withIndex("by_outlet", (q) => q.eq("outletId", args.outletId))
+      .collect();
+
+    const todayOrdersForOutlet = todayOrders.filter(
+      (order) => order.orderDate >= todayStart && order.orderDate < todayEnd
+    );
+
+    const sequenceNumber = String(todayOrdersForOutlet.length + 1).padStart(2, '0');
+    const orderNumber = `${outletCode}-${dateStr}-${sequenceNumber}`;
 
     const orderId = await ctx.db.insert("orders", {
       orderNumber,
