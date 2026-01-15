@@ -111,7 +111,7 @@ export default function Inventory() {
                     <TableHead className="text-xs">Product</TableHead>
                     <TableHead className="text-xs">Location</TableHead>
                     <TableHead className="text-xs">Quantity</TableHead>
-                    <TableHead className="text-xs">Current Level (Reorder Threshold)</TableHead>
+                    <TableHead className="text-xs">Reorder Threshold</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
                     <TableHead className="text-xs">Actions</TableHead>
                   </TableRow>
@@ -302,7 +302,7 @@ function AdjustInventoryForm({ item, onSuccess }: { item: any; onSuccess: () => 
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="reorderLevel" className="text-xs">Current Level (Reorder Threshold) *</Label>
+        <Label htmlFor="reorderLevel" className="text-xs">Reorder Threshold *</Label>
         <Input
           id="reorderLevel"
           name="reorderLevel"
@@ -310,7 +310,7 @@ function AdjustInventoryForm({ item, onSuccess }: { item: any; onSuccess: () => 
           min="0"
           step="1"
           defaultValue={item.product?.reorderLevel || 0}
-          placeholder="Enter reorder level"
+          placeholder="Enter reorder threshold"
           required
           className="text-sm"
         />
