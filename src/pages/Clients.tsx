@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export default function Clients() {
+export default function Clients({ embedded = false }: { embedded?: boolean }) {
   const viewer = useQuery(api.users.currentUser);
   const clients = useQuery(api.clients.list);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -61,17 +61,20 @@ export default function Clients() {
     return <Navigate to="/auth" />;
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <nav className="border-b border-border bg-card">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14">
-            <Link to="/dashboard">
-              <Button variant="ghost" size="sm" className="gap-2 text-xs">
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Back
-              </Button>
-            </Link>
+  const content = (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Manage your customer base and their outlets
+              </p>
+            </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="gap-2 text-xs">
@@ -86,22 +89,6 @@ export default function Clients() {
                 <AddClientForm onSuccess={() => setIsDialogOpen(false)} />
               </DialogContent>
             </Dialog>
-          </div>
-        </div>
-      </nav>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="space-y-6"
-        >
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Manage your customer base and their outlets
-            </p>
           </div>
 
           {clients.length === 0 ? (
@@ -180,22 +167,45 @@ export default function Clients() {
               </Table>
             </div>
           )}
-        </motion.div>
-      </main>
 
-      <Dialog open={!!editingClient} onOpenChange={() => setEditingClient(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Client</DialogTitle>
-          </DialogHeader>
-          {editingClient && (
-            <EditClientForm
-              client={editingClient}
-              onSuccess={() => setEditingClient(null)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+          <Dialog open={!!editingClient} onOpenChange={() => setEditingClient(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Client</DialogTitle>
+              </DialogHeader>
+              {editingClient && (
+                <EditClientForm
+                  client={editingClient}
+                  onSuccess={() => setEditingClient(null)}
+                />
+              )}
+            </DialogContent>
+          </Dialog>
+        </motion.div>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <nav className="border-b border-border bg-card">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14">
+            <Link to="/dashboard">
+              <Button variant="ghost" size="sm" className="gap-2 text-xs">
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {content}
+      </main>
     </div>
   );
 }

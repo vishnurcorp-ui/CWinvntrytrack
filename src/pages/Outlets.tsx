@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export default function Outlets() {
+export default function Outlets({ embedded = false }: { embedded?: boolean }) {
   const viewer = useQuery(api.users.currentUser);
   const outlets = useQuery(api.outlets.list);
   const clients = useQuery(api.clients.list);
@@ -68,17 +68,20 @@ export default function Outlets() {
     ? outlets
     : outlets.filter(outlet => outlet.client?._id === selectedClientId);
 
-  return (
-    <div className="min-h-screen bg-background">
-      <nav className="border-b border-border bg-card">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14">
-            <Link to="/dashboard">
-              <Button variant="ghost" size="sm" className="gap-2 text-xs">
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Back
-              </Button>
-            </Link>
+  const content = (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">Outlets</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Manage client outlet locations and branches
+              </p>
+            </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="gap-2 text-xs">
@@ -96,22 +99,6 @@ export default function Outlets() {
                 />
               </DialogContent>
             </Dialog>
-          </div>
-        </div>
-      </nav>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="space-y-6"
-        >
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Outlets</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Manage client outlet locations and branches
-            </p>
           </div>
 
           {outlets.length > 0 && (
@@ -230,22 +217,45 @@ export default function Outlets() {
               </Table>
             </div>
           )}
-        </motion.div>
-      </main>
 
-      <Dialog open={!!editingOutlet} onOpenChange={() => setEditingOutlet(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Outlet</DialogTitle>
-          </DialogHeader>
-          {editingOutlet && (
-            <EditOutletForm
-              outlet={editingOutlet}
-              onSuccess={() => setEditingOutlet(null)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+          <Dialog open={!!editingOutlet} onOpenChange={() => setEditingOutlet(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Outlet</DialogTitle>
+              </DialogHeader>
+              {editingOutlet && (
+                <EditOutletForm
+                  outlet={editingOutlet}
+                  onSuccess={() => setEditingOutlet(null)}
+                />
+              )}
+            </DialogContent>
+          </Dialog>
+        </motion.div>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <nav className="border-b border-border bg-card">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14">
+            <Link to="/dashboard">
+              <Button variant="ghost" size="sm" className="gap-2 text-xs">
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {content}
+      </main>
     </div>
   );
 }

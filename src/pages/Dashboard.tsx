@@ -57,8 +57,7 @@ export default function Dashboard() {
     { name: "Orders", path: "/orders", icon: ShoppingCart },
     { name: "Expenses", path: "/expenses", icon: DollarSign },
     { name: "Locations", path: "/locations", icon: Warehouse },
-    { name: "Clients", path: "/clients", icon: Users },
-    { name: "Outlets", path: "/outlets", icon: MapPin },
+    { name: "Clients & Outlets", path: "/clients-outlets", icon: Users },
   ];
 
   return (

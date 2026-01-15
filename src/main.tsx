@@ -20,6 +20,7 @@ import Orders from "./pages/Orders.tsx";
 import Locations from "./pages/Locations.tsx";
 import Clients from "./pages/Clients.tsx";
 import Outlets from "./pages/Outlets.tsx";
+import ClientsOutlets from "./pages/ClientsOutlets.tsx";
 import StockMovements from "./pages/StockMovements.tsx";
 import Corrections from "./pages/Corrections.tsx";
 import Expenses from "./pages/Expenses.tsx";
@@ -69,6 +70,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/locations" element={<Locations />} />
             <Route path="/clients" element={<Clients />} />
             <Route path="/outlets" element={<Outlets />} />
+            <Route path="/clients-outlets" element={<ClientsOutlets />} />
             <Route path="/stock-movements" element={<StockMovements />} />
             <Route path="/corrections" element={<Corrections />} />
             <Route path="/expenses" element={<Expenses />} />
