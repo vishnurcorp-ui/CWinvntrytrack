@@ -230,7 +230,7 @@ export default function Expenses() {
       </main>
 
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add Expense</DialogTitle>
           </DialogHeader>
@@ -243,12 +243,13 @@ export default function Expenses() {
       </Dialog>
 
       <Dialog open={!!editingExpense} onOpenChange={() => setEditingExpense(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Expense</DialogTitle>
           </DialogHeader>
           {editingExpense && (
             <ExpenseForm
+              key={editingExpense._id}
               expense={editingExpense}
               orders={orders || []}
               outlets={outlets || []}
@@ -275,6 +276,9 @@ function ExpenseForm({
   const createExpense = useMutation(api.expenses.create);
   const updateExpense = useMutation(api.expenses.update);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [category, setCategory] = useState(expense?.category || "delivery");
+  const [orderId, setOrderId] = useState(expense?.orderId || "none");
+  const [outletId, setOutletId] = useState(expense?.outletId || "none");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -282,41 +286,37 @@ function ExpenseForm({
 
     const formData = new FormData(e.currentTarget);
     const date = new Date(formData.get("date") as string).getTime();
-    const category = formData.get("category") as "delivery" | "operational" | "other";
     const vendor = formData.get("vendor") as string;
     const description = formData.get("description") as string;
     const amount = Number(formData.get("amount"));
     const paymentMode = formData.get("paymentMode") as string;
     const notes = formData.get("notes") as string;
 
-    const orderIdValue = formData.get("orderId") as string;
-    const outletIdValue = formData.get("outletId") as string;
-
     try {
       if (expense) {
         await updateExpense({
           id: expense._id,
           date,
-          category,
+          category: category as "delivery" | "operational" | "other",
           vendor,
           description,
           amount,
           paymentMode,
-          orderId: orderIdValue && orderIdValue !== "none" ? orderIdValue as any : undefined,
-          outletId: outletIdValue && outletIdValue !== "none" ? outletIdValue as any : undefined,
+          orderId: orderId && orderId !== "none" ? orderId as any : undefined,
+          outletId: outletId && outletId !== "none" ? outletId as any : undefined,
           notes: notes || undefined,
         });
         toast("Expense updated successfully");
       } else {
         await createExpense({
           date,
-          category,
+          category: category as "delivery" | "operational" | "other",
           vendor,
           description,
           amount,
           paymentMode,
-          orderId: orderIdValue && orderIdValue !== "none" ? orderIdValue as any : undefined,
-          outletId: outletIdValue && outletIdValue !== "none" ? outletIdValue as any : undefined,
+          orderId: orderId && orderId !== "none" ? orderId as any : undefined,
+          outletId: outletId && outletId !== "none" ? outletId as any : undefined,
           notes: notes || undefined,
         });
         toast("Expense added successfully");
@@ -349,7 +349,7 @@ function ExpenseForm({
 
       <div className="space-y-2">
         <Label htmlFor="category" className="text-xs">Category *</Label>
-        <Select name="category" defaultValue={expense?.category || "delivery"} required>
+        <Select name="category" value={category} onValueChange={setCategory} required>
           <SelectTrigger className="text-sm">
             <SelectValue />
           </SelectTrigger>
@@ -414,7 +414,7 @@ function ExpenseForm({
 
       <div className="space-y-2">
         <Label htmlFor="orderId" className="text-xs">Link to Order (Optional)</Label>
-        <Select name="orderId" defaultValue={expense?.orderId || "none"}>
+        <Select name="orderId" value={orderId} onValueChange={setOrderId}>
           <SelectTrigger className="text-sm">
             <SelectValue placeholder="Select order" />
           </SelectTrigger>
@@ -431,7 +431,7 @@ function ExpenseForm({
 
       <div className="space-y-2">
         <Label htmlFor="outletId" className="text-xs">Link to Outlet (Optional)</Label>
-        <Select name="outletId" defaultValue={expense?.outletId || "none"}>
+        <Select name="outletId" value={outletId} onValueChange={setOutletId}>
           <SelectTrigger className="text-sm">
             <SelectValue placeholder="Select outlet" />
           </SelectTrigger>

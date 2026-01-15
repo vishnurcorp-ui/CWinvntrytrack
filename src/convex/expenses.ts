@@ -46,7 +46,7 @@ export const listByDateRange = query({
       .query("expenses")
       .withIndex("by_date")
       .order("desc")
-      .collect();
+      .take(500);
 
     const filtered = allExpenses.filter(
       (expense) => expense.date >= args.startDate && expense.date <= args.endDate
@@ -78,7 +78,7 @@ export const listByDateRange = query({
 export const getTotalByCategory = query({
   args: {},
   handler: async (ctx) => {
-    const expenses = await ctx.db.query("expenses").collect();
+    const expenses = await ctx.db.query("expenses").take(1000);
 
     const totals = {
       delivery: 0,
