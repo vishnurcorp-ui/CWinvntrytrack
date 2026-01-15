@@ -165,7 +165,11 @@ export const create = mutation({
     const outlet = await ctx.db.get(args.outletId);
     if (!outlet) throw new Error("Outlet not found");
 
-    const orderNumber = `ORD-${Date.now()}`;
+    // Generate order number with date: ORD-YYYYMMDD-XXX
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
+    const timeStr = now.getTime().toString().slice(-3); // Last 3 digits of timestamp for uniqueness
+    const orderNumber = `ORD-${dateStr}-${timeStr}`;
 
     const orderId = await ctx.db.insert("orders", {
       orderNumber,

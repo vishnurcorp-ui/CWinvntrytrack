@@ -325,105 +325,95 @@ function CreateOrderForm({ onSuccess }: { onSuccess: () => void }) {
             Add Product
           </Button>
         </div>
-        <div className="space-y-2 max-h-60 overflow-y-auto border border-border p-2">
+        <div className="space-y-2 max-h-64 overflow-y-auto border border-border rounded-md p-3">
           {orderItems.map((item, index) => (
-            <div key={index} className="flex gap-2 items-end">
-              <div className="flex-1 space-y-1">
-                <Label htmlFor={`product-${index}`} className="text-xs">Product</Label>
-                <Select
-                  value={item.productId}
-                  onValueChange={(val) => updateItem(index, "productId", val)}
-                  required
-                >
-                  <SelectTrigger className="text-xs h-8">
-                    <SelectValue placeholder="Select product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products?.filter(p => p.isActive).map((product) => (
-                      <SelectItem key={product._id} value={product._id} className="text-xs">
-                        {product.name} ({product.sku})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div key={index} className="bg-muted/50 p-2 rounded-md">
+              <div className="flex gap-2 items-start">
+                <div className="flex-1 space-y-1.5">
+                  <Label htmlFor={`product-${index}`} className="text-xs">Product *</Label>
+                  <Select
+                    value={item.productId}
+                    onValueChange={(val) => updateItem(index, "productId", val)}
+                    required
+                  >
+                    <SelectTrigger className="text-xs h-9">
+                      <SelectValue placeholder="Select product" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products?.filter(p => p.isActive).map((product) => (
+                        <SelectItem key={product._id} value={product._id} className="text-xs">
+                          {product.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-20 space-y-1.5">
+                  <Label htmlFor={`quantity-${index}`} className="text-xs">Qty *</Label>
+                  <Input
+                    id={`quantity-${index}`}
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={item.quantity}
+                    onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
+                    className="text-xs h-9"
+                    required
+                  />
+                </div>
+                <div className="w-28 space-y-1.5">
+                  <Label htmlFor={`unitType-${index}`} className="text-xs">Size</Label>
+                  <Select
+                    value={item.unitType || ""}
+                    onValueChange={(val) => updateItem(index, "unitType", val)}
+                  >
+                    <SelectTrigger className="text-xs h-9">
+                      <SelectValue placeholder="Optional" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="250ml" className="text-xs">250ml</SelectItem>
+                      <SelectItem value="1L" className="text-xs">1L</SelectItem>
+                      <SelectItem value="5L" className="text-xs">5L</SelectItem>
+                      <SelectItem value="20L" className="text-xs">20L</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {orderItems.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeItem(index)}
+                    className="h-9 w-9 p-0 mt-6"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </div>
-              <div className="w-24 space-y-1">
-                <Label htmlFor={`quantity-${index}`} className="text-xs">Quantity</Label>
-                <Input
-                  id={`quantity-${index}`}
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={item.quantity}
-                  onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
-                  className="text-xs h-8"
-                  required
-                />
-              </div>
-              <div className="w-32 space-y-1">
-                <Label htmlFor={`unitType-${index}`} className="text-xs">Unit Type</Label>
-                <Select
-                  value={item.unitType || ""}
-                  onValueChange={(val) => updateItem(index, "unitType", val)}
-                >
-                  <SelectTrigger className="text-xs h-8">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Sample 250ml" className="text-xs">Sample 250ml</SelectItem>
-                    <SelectItem value="1L Bottle" className="text-xs">1L Bottle</SelectItem>
-                    <SelectItem value="5L Can" className="text-xs">5L Can</SelectItem>
-                    <SelectItem value="20L Drum" className="text-xs">20L Drum</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="w-24 space-y-1">
-                <Label htmlFor={`unitPrice-${index}`} className="text-xs">Unit Price</Label>
-                <Input
-                  id={`unitPrice-${index}`}
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={item.unitPrice || ""}
-                  onChange={(e) => updateItem(index, "unitPrice", e.target.value ? Number(e.target.value) : undefined)}
-                  placeholder="Optional"
-                  className="text-xs h-8"
-                />
-              </div>
-              {orderItems.length > 1 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeItem(index)}
-                  className="h-8 w-8 p-0"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
             </div>
           ))}
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="expectedDeliveryDate" className="text-xs">Expected Delivery Date</Label>
-        <Input
-          id="expectedDeliveryDate"
-          name="expectedDeliveryDate"
-          type="date"
-          className="text-sm"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="notes" className="text-xs">Notes</Label>
-        <Input
-          id="notes"
-          name="notes"
-          placeholder="Additional information"
-          className="text-sm"
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="expectedDeliveryDate" className="text-xs">Expected Delivery (Optional)</Label>
+          <Input
+            id="expectedDeliveryDate"
+            name="expectedDeliveryDate"
+            type="date"
+            className="text-sm"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="notes" className="text-xs">Notes (Optional)</Label>
+          <Input
+            id="notes"
+            name="notes"
+            placeholder="Add notes..."
+            className="text-sm"
+          />
+        </div>
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
