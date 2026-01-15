@@ -144,6 +144,7 @@ export const adjustQuantity = mutation({
     productId: v.id("products"),
     locationId: v.id("locations"),
     adjustment: v.number(),
+    reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -157,20 +158,55 @@ export const adjustQuantity = mutation({
       .unique();
 
     if (existing) {
-      const newQuantity = existing.quantity + args.adjustment;
+      const oldQuantity = existing.quantity;
+      const newQuantity = Math.max(0, existing.quantity + args.adjustment);
+
       await ctx.db.patch(existing._id, {
-        quantity: Math.max(0, newQuantity),
+        quantity: newQuantity,
         lastUpdated: Date.now(),
       });
+
+      // Log the correction
+      if (args.reason) {
+        await ctx.db.insert("inventoryCorrections", {
+          productId: args.productId,
+          locationId: args.locationId,
+          oldQuantity,
+          newQuantity,
+          adjustment: args.adjustment,
+          adjustmentType: args.adjustment > 0 ? "add" as const : "subtract" as const,
+          reason: args.reason,
+          performedBy: userId,
+          correctionDate: Date.now(),
+        });
+      }
+
       return existing._id;
     } else {
       if (args.adjustment > 0) {
-        return await ctx.db.insert("inventory", {
+        const inventoryId = await ctx.db.insert("inventory", {
           productId: args.productId,
           locationId: args.locationId,
           quantity: args.adjustment,
           lastUpdated: Date.now(),
         });
+
+        // Log the correction for new inventory
+        if (args.reason) {
+          await ctx.db.insert("inventoryCorrections", {
+            productId: args.productId,
+            locationId: args.locationId,
+            oldQuantity: 0,
+            newQuantity: args.adjustment,
+            adjustment: args.adjustment,
+            adjustmentType: "add" as const,
+            reason: args.reason,
+            performedBy: userId,
+            correctionDate: Date.now(),
+          });
+        }
+
+        return inventoryId;
       }
       throw new Error("Cannot adjust non-existent inventory");
     }

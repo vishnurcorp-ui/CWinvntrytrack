@@ -159,6 +159,21 @@ const schema = defineSchema(
       .index("by_type", ["movementType"])
       .index("by_order", ["orderId"]),
 
+    // Inventory Corrections Log
+    inventoryCorrections: defineTable({
+      productId: v.id("products"),
+      locationId: v.id("locations"),
+      oldQuantity: v.number(),
+      newQuantity: v.number(),
+      adjustment: v.number(),
+      adjustmentType: v.union(v.literal("add"), v.literal("subtract")),
+      reason: v.string(),
+      performedBy: v.id("users"),
+      correctionDate: v.number(),
+    }).index("by_product", ["productId"])
+      .index("by_location", ["locationId"])
+      .index("by_date", ["correctionDate"]),
+
     // Alerts
     alerts: defineTable({
       type: v.union(

@@ -73,12 +73,20 @@ export default function Inventory() {
                 Back
               </Button>
             </Link>
-            <Link to="/stock-movements">
-              <Button size="sm" className="gap-2 text-xs">
-                <TrendingUp className="h-3.5 w-3.5" />
-                Stock Movements
-              </Button>
-            </Link>
+            <div className="flex gap-2">
+              <Link to="/corrections">
+                <Button size="sm" variant="outline" className="gap-2 text-xs">
+                  <Edit2 className="h-3.5 w-3.5" />
+                  Corrections Log
+                </Button>
+              </Link>
+              <Link to="/stock-movements">
+                <Button size="sm" className="gap-2 text-xs">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Stock Movements
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </nav>
@@ -234,6 +242,7 @@ function AdjustInventoryForm({ item, onSuccess }: { item: any; onSuccess: () => 
         productId: item.productId,
         locationId: item.locationId,
         adjustment,
+        reason,
       });
 
       // Update reorder level if changed

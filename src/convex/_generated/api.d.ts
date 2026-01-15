@@ -14,6 +14,7 @@ import type * as clients from "../clients.js";
 import type * as dashboard from "../dashboard.js";
 import type * as http from "../http.js";
 import type * as inventory from "../inventory.js";
+import type * as inventoryCorrections from "../inventoryCorrections.js";
 import type * as locations from "../locations.js";
 import type * as orders from "../orders.js";
 import type * as outlets from "../outlets.js";
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   dashboard: typeof dashboard;
   http: typeof http;
   inventory: typeof inventory;
+  inventoryCorrections: typeof inventoryCorrections;
   locations: typeof locations;
   orders: typeof orders;
   outlets: typeof outlets;
