@@ -129,6 +129,7 @@ const schema = defineSchema(
       orderId: v.id("orders"),
       productId: v.id("products"),
       quantity: v.number(),
+      deliveredQuantity: v.optional(v.number()), // Actual quantity delivered (for partial deliveries)
       unitType: v.optional(v.string()), // e.g., "Sample 250ml", "1L Bottle", "5L Can"
       unitPrice: v.optional(v.number()),
       totalPrice: v.optional(v.number()),

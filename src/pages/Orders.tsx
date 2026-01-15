@@ -447,10 +447,24 @@ function CreateOrderForm({ onSuccess }: { onSuccess: () => void }) {
 
 function UpdateOrderStatusForm({ order, onSuccess }: { order: any; onSuccess: () => void }) {
   const updateStatus = useMutation(api.orders.updateStatus);
+  const markDelivered = useMutation(api.orders.markDelivered);
   const locations = useQuery(api.locations.list);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState(order.status);
   const [selectedLocation, setSelectedLocation] = useState("");
+  const [showDeliveryForm, setShowDeliveryForm] = useState(false);
+  const [deliveredQuantities, setDeliveredQuantities] = useState<Record<string, number>>({});
+
+  // Initialize delivered quantities with ordered quantities
+  useState(() => {
+    if (order.items) {
+      const initial: Record<string, number> = {};
+      for (const item of order.items) {
+        initial[item._id] = item.quantity;
+      }
+      setDeliveredQuantities(initial);
+    }
+  });
 
   const statusOptions = [
     { value: "pending", label: "Pending", description: "Order has been placed but not yet processed" },
@@ -463,14 +477,14 @@ function UpdateOrderStatusForm({ order, onSuccess }: { order: any; onSuccess: ()
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsSubmitting(true);
 
-    // Validate location is selected when marking as delivered
-    if (selectedStatus === "delivered" && !selectedLocation) {
-      toast("Please select a warehouse location to deduct inventory from");
-      setIsSubmitting(false);
+    // If marking as delivered, show delivery form instead
+    if (selectedStatus === "delivered" && !showDeliveryForm) {
+      setShowDeliveryForm(true);
       return;
     }
+
+    setIsSubmitting(true);
 
     try {
       await updateStatus({
@@ -486,6 +500,148 @@ function UpdateOrderStatusForm({ order, onSuccess }: { order: any; onSuccess: ()
       setIsSubmitting(false);
     }
   };
+
+  const handleDeliverySubmit = async () => {
+    if (!selectedLocation) {
+      toast("Please select a warehouse location");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const deliveredItems = Object.entries(deliveredQuantities).map(([itemId, quantity]) => ({
+        itemId: itemId as any,
+        deliveredQuantity: quantity,
+      }));
+
+      await markDelivered({
+        id: order._id,
+        locationId: selectedLocation as any,
+        deliveredItems,
+      });
+
+      toast("Order marked as delivered successfully");
+      onSuccess();
+    } catch (error: any) {
+      toast(error.message || "Failed to mark order as delivered");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (showDeliveryForm) {
+    return (
+      <div className="space-y-4">
+        <div className="bg-muted p-3 space-y-1">
+          <p className="text-xs text-muted-foreground">Marking order as delivered</p>
+          <p className="text-sm font-medium">{order.orderNumber}</p>
+          <p className="text-xs text-muted-foreground">
+            {order.client?.name} - {order.outlet?.name}
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="location" className="text-xs">Warehouse Location *</Label>
+          <Select value={selectedLocation} onValueChange={setSelectedLocation} required>
+            <SelectTrigger className="text-sm">
+              <SelectValue placeholder="Select warehouse to deduct inventory from" />
+            </SelectTrigger>
+            <SelectContent>
+              {locations?.filter(l => l.isActive).map((location) => (
+                <SelectItem key={location._id} value={location._id}>
+                  {location.name} - {location.city}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-xs">Delivered Quantities</Label>
+          <p className="text-xs text-muted-foreground mb-2">
+            Enter the actual quantity delivered for each item (can be less than ordered if partial delivery)
+          </p>
+          <div className="border border-border rounded-md overflow-hidden">
+            {order.items?.map((item: any) => (
+              <div key={item._id} className="p-3 border-b border-border last:border-0">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{item.product?.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Ordered: {item.quantity} {item.product?.unit}
+                      {item.unitType && ` (${item.unitType})`}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor={`qty-${item._id}`} className="text-xs whitespace-nowrap">
+                    Delivered:
+                  </Label>
+                  <Input
+                    id={`qty-${item._id}`}
+                    type="number"
+                    min="0"
+                    max={item.quantity}
+                    value={deliveredQuantities[item._id] || 0}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 0;
+                      setDeliveredQuantities(prev => ({
+                        ...prev,
+                        [item._id]: Math.min(Math.max(0, value), item.quantity)
+                      }));
+                    }}
+                    className="text-sm w-24"
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {item.product?.unit}
+                  </span>
+                </div>
+                {deliveredQuantities[item._id] < item.quantity && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    ⚠ Partial delivery: {item.quantity - deliveredQuantities[item._id]} {item.product?.unit} short
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-amber-50 border border-amber-200 p-3">
+          <p className="text-xs text-amber-800">
+            <strong>Note:</strong> Marking as delivered will:
+          </p>
+          <ul className="text-xs text-amber-800 list-disc list-inside mt-1">
+            <li>Record the delivery date and time</li>
+            <li>Deduct the <strong>delivered quantities</strong> from inventory</li>
+            <li>Create stock movement records</li>
+          </ul>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowDeliveryForm(false)}
+            disabled={isSubmitting}
+            className="text-xs"
+          >
+            Back
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleDeliverySubmit}
+            disabled={isSubmitting || !selectedLocation}
+            className="text-xs"
+          >
+            {isSubmitting ? "Processing..." : "Confirm Delivery"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -523,36 +679,11 @@ function UpdateOrderStatusForm({ order, onSuccess }: { order: any; onSuccess: ()
       </div>
 
       {selectedStatus === "delivered" && (
-        <>
-          <div className="space-y-2">
-            <Label htmlFor="location" className="text-xs">Warehouse Location *</Label>
-            <Select value={selectedLocation} onValueChange={setSelectedLocation} required>
-              <SelectTrigger className="text-sm">
-                <SelectValue placeholder="Select warehouse to deduct inventory from" />
-              </SelectTrigger>
-              <SelectContent>
-                {locations?.filter(l => l.isActive).map((location) => (
-                  <SelectItem key={location._id} value={location._id}>
-                    {location.name} - {location.city}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Select the warehouse from which inventory will be deducted
-            </p>
-          </div>
-          <div className="bg-green-50 border border-green-200 p-3">
-            <p className="text-xs text-green-800">
-              <strong>Note:</strong> Setting status to "Delivered" will:
-            </p>
-            <ul className="text-xs text-green-800 list-disc list-inside mt-1">
-              <li>Record the delivery date and time</li>
-              <li>Create outbound stock movements for all order items</li>
-              <li>Deduct inventory quantities from the selected warehouse</li>
-            </ul>
-          </div>
-        </>
+        <div className="bg-blue-50 border border-blue-200 p-3">
+          <p className="text-xs text-blue-800">
+            <strong>Partial Delivery Support:</strong> You'll be able to specify the exact quantity delivered for each item in the next step.
+          </p>
+        </div>
       )}
 
       <div className="flex justify-end gap-2 pt-4">

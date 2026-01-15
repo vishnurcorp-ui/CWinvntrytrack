@@ -244,6 +244,85 @@ export const update = mutation({
   },
 });
 
+export const markDelivered = mutation({
+  args: {
+    id: v.id("orders"),
+    locationId: v.id("locations"),
+    deliveredItems: v.array(
+      v.object({
+        itemId: v.id("orderItems"),
+        deliveredQuantity: v.number(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const order = await ctx.db.get(args.id);
+    if (!order) throw new Error("Order not found");
+
+    if (order.status === "delivered") {
+      throw new Error("Order is already marked as delivered");
+    }
+
+    // Get all order items
+    const orderItems = await ctx.db
+      .query("orderItems")
+      .withIndex("by_order", (q) => q.eq("orderId", args.id))
+      .collect();
+
+    // Update delivered quantities for each item and create stock movements
+    for (const deliveredItem of args.deliveredItems) {
+      const orderItem = orderItems.find((item) => item._id === deliveredItem.itemId);
+      if (!orderItem) continue;
+
+      // Validate delivered quantity doesn't exceed ordered quantity
+      if (deliveredItem.deliveredQuantity > orderItem.quantity) {
+        throw new Error(
+          `Delivered quantity (${deliveredItem.deliveredQuantity}) cannot exceed ordered quantity (${orderItem.quantity})`
+        );
+      }
+
+      // Update the order item with delivered quantity
+      await ctx.db.patch(deliveredItem.itemId, {
+        deliveredQuantity: deliveredItem.deliveredQuantity,
+      });
+
+      // Only create stock movement and deduct inventory if quantity > 0
+      if (deliveredItem.deliveredQuantity > 0) {
+        // Insert stock movement record
+        await ctx.db.insert("stockMovements", {
+          productId: orderItem.productId,
+          locationId: args.locationId,
+          movementType: "outbound" as const,
+          quantity: deliveredItem.deliveredQuantity,
+          unitType: orderItem.unitType,
+          orderId: args.id,
+          notes: `Order ${order.orderNumber} delivered (${deliveredItem.deliveredQuantity} of ${orderItem.quantity} ordered)`,
+          performedBy: userId,
+          movementDate: Date.now(),
+        });
+
+        // Update inventory (deduct delivered quantity)
+        await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+          productId: orderItem.productId,
+          locationId: args.locationId,
+          adjustment: -deliveredItem.deliveredQuantity,
+        });
+      }
+    }
+
+    // Mark order as delivered
+    await ctx.db.patch(args.id, {
+      status: "delivered" as const,
+      actualDeliveryDate: Date.now(),
+    });
+
+    return args.id;
+  },
+});
+
 export const updateStatus = mutation({
   args: {
     id: v.id("orders"),
