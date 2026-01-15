@@ -379,6 +379,7 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
   const recordInbound = useMutation(api.stockMovements.recordInbound);
   const products = useQuery(api.products.list);
   const locations = useQuery(api.locations.list);
+  const inventory = useQuery(api.inventory.list);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState("");
   const [stockItems, setStockItems] = useState<Array<{
@@ -386,6 +387,14 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
     quantity: number;
     unitType?: string;
   }>>([{ productId: "", quantity: 1 }]);
+
+  const getCurrentQuantity = (productId: string, locationId: string) => {
+    if (!inventory || !productId || !locationId) return 0;
+    const item = inventory.find(
+      (inv) => inv.productId === productId && inv.locationId === locationId
+    );
+    return item?.quantity || 0;
+  };
 
   const addItem = () => {
     setStockItems([...stockItems, { productId: "", quantity: 1 }]);
@@ -465,70 +474,82 @@ function StockInForm({ onSuccess }: { onSuccess: () => void }) {
           </Button>
         </div>
         <div className="space-y-2 max-h-60 overflow-y-auto border border-border p-2">
-          {stockItems.map((item, index) => (
-            <div key={index} className="flex gap-2 items-end">
-              <div className="flex-1 space-y-1">
-                <Label htmlFor={`product-${index}`} className="text-xs">Product</Label>
-                <Select
-                  value={item.productId}
-                  onValueChange={(val) => updateItem(index, "productId", val)}
-                  required
-                >
-                  <SelectTrigger className="text-xs h-8">
-                    <SelectValue placeholder="Select product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products?.filter(p => p.isActive).map((product) => (
-                      <SelectItem key={product._id} value={product._id} className="text-xs">
-                        {product.name} ({product.sku})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          {stockItems.map((item, index) => {
+            const currentQty = getCurrentQuantity(item.productId, selectedLocation);
+            const newQty = currentQty + item.quantity;
+
+            return (
+              <div key={index} className="space-y-1">
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1 space-y-1">
+                    <Label htmlFor={`product-${index}`} className="text-xs">Product</Label>
+                    <Select
+                      value={item.productId}
+                      onValueChange={(val) => updateItem(index, "productId", val)}
+                      required
+                    >
+                      <SelectTrigger className="text-xs h-8">
+                        <SelectValue placeholder="Select product" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products?.filter(p => p.isActive).map((product) => (
+                          <SelectItem key={product._id} value={product._id} className="text-xs">
+                            {product.name} ({product.sku})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="w-24 space-y-1">
+                    <Label htmlFor={`quantity-${index}`} className="text-xs">Quantity</Label>
+                    <Input
+                      id={`quantity-${index}`}
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
+                      className="text-xs h-8"
+                      required
+                    />
+                  </div>
+                  <div className="w-32 space-y-1">
+                    <Label htmlFor={`unitType-${index}`} className="text-xs">Unit Type</Label>
+                    <Select
+                      value={item.unitType || ""}
+                      onValueChange={(val) => updateItem(index, "unitType", val)}
+                    >
+                      <SelectTrigger className="text-xs h-8">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Sample 250ml" className="text-xs">Sample 250ml</SelectItem>
+                        <SelectItem value="1L Bottle" className="text-xs">1L Bottle</SelectItem>
+                        <SelectItem value="5L Can" className="text-xs">5L Can</SelectItem>
+                        <SelectItem value="20L Drum" className="text-xs">20L Drum</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {stockItems.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeItem(index)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+                {item.productId && selectedLocation && (
+                  <div className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                    Current: <span className="font-medium">{currentQty}</span> + <span className="text-green-600 font-medium">{item.quantity}</span> = <span className="font-semibold">{newQty}</span>
+                  </div>
+                )}
               </div>
-              <div className="w-24 space-y-1">
-                <Label htmlFor={`quantity-${index}`} className="text-xs">Quantity</Label>
-                <Input
-                  id={`quantity-${index}`}
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={item.quantity}
-                  onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
-                  className="text-xs h-8"
-                  required
-                />
-              </div>
-              <div className="w-32 space-y-1">
-                <Label htmlFor={`unitType-${index}`} className="text-xs">Unit Type</Label>
-                <Select
-                  value={item.unitType || ""}
-                  onValueChange={(val) => updateItem(index, "unitType", val)}
-                >
-                  <SelectTrigger className="text-xs h-8">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Sample 250ml" className="text-xs">Sample 250ml</SelectItem>
-                    <SelectItem value="1L Bottle" className="text-xs">1L Bottle</SelectItem>
-                    <SelectItem value="5L Can" className="text-xs">5L Can</SelectItem>
-                    <SelectItem value="20L Drum" className="text-xs">20L Drum</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {stockItems.length > 1 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeItem(index)}
-                  className="h-8 w-8 p-0"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -575,6 +596,7 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
   const recordOutbound = useMutation(api.stockMovements.recordOutbound);
   const products = useQuery(api.products.list);
   const locations = useQuery(api.locations.list);
+  const inventory = useQuery(api.inventory.list);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState("");
   const [stockItems, setStockItems] = useState<Array<{
@@ -582,6 +604,14 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
     quantity: number;
     unitType?: string;
   }>>([{ productId: "", quantity: 1 }]);
+
+  const getCurrentQuantity = (productId: string, locationId: string) => {
+    if (!inventory || !productId || !locationId) return 0;
+    const item = inventory.find(
+      (inv) => inv.productId === productId && inv.locationId === locationId
+    );
+    return item?.quantity || 0;
+  };
 
   const addItem = () => {
     setStockItems([...stockItems, { productId: "", quantity: 1 }]);
@@ -659,70 +689,83 @@ function StockOutForm({ onSuccess }: { onSuccess: () => void }) {
           </Button>
         </div>
         <div className="space-y-2 max-h-60 overflow-y-auto border border-border p-2">
-          {stockItems.map((item, index) => (
-            <div key={index} className="flex gap-2 items-end">
-              <div className="flex-1 space-y-1">
-                <Label htmlFor={`product-out-${index}`} className="text-xs">Product</Label>
-                <Select
-                  value={item.productId}
-                  onValueChange={(val) => updateItem(index, "productId", val)}
-                  required
-                >
-                  <SelectTrigger className="text-xs h-8">
-                    <SelectValue placeholder="Select product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products?.filter(p => p.isActive).map((product) => (
-                      <SelectItem key={product._id} value={product._id} className="text-xs">
-                        {product.name} ({product.sku})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          {stockItems.map((item, index) => {
+            const currentQty = getCurrentQuantity(item.productId, selectedLocation);
+            const newQty = currentQty - item.quantity;
+
+            return (
+              <div key={index} className="space-y-1">
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1 space-y-1">
+                    <Label htmlFor={`product-out-${index}`} className="text-xs">Product</Label>
+                    <Select
+                      value={item.productId}
+                      onValueChange={(val) => updateItem(index, "productId", val)}
+                      required
+                    >
+                      <SelectTrigger className="text-xs h-8">
+                        <SelectValue placeholder="Select product" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products?.filter(p => p.isActive).map((product) => (
+                          <SelectItem key={product._id} value={product._id} className="text-xs">
+                            {product.name} ({product.sku})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="w-24 space-y-1">
+                    <Label htmlFor={`quantity-out-${index}`} className="text-xs">Quantity</Label>
+                    <Input
+                      id={`quantity-out-${index}`}
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
+                      className="text-xs h-8"
+                      required
+                    />
+                  </div>
+                  <div className="w-32 space-y-1">
+                    <Label htmlFor={`unitType-out-${index}`} className="text-xs">Unit Type</Label>
+                    <Select
+                      value={item.unitType || ""}
+                      onValueChange={(val) => updateItem(index, "unitType", val)}
+                    >
+                      <SelectTrigger className="text-xs h-8">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Sample 250ml" className="text-xs">Sample 250ml</SelectItem>
+                        <SelectItem value="1L Bottle" className="text-xs">1L Bottle</SelectItem>
+                        <SelectItem value="5L Can" className="text-xs">5L Can</SelectItem>
+                        <SelectItem value="20L Drum" className="text-xs">20L Drum</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {stockItems.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeItem(index)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+                {item.productId && selectedLocation && (
+                  <div className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                    Current: <span className="font-medium">{currentQty}</span> - <span className="text-red-600 font-medium">{item.quantity}</span> = <span className={`font-semibold ${newQty < 0 ? 'text-red-600' : ''}`}>{newQty}</span>
+                    {newQty < 0 && <span className="text-red-600 ml-1">(Insufficient stock!)</span>}
+                  </div>
+                )}
               </div>
-              <div className="w-24 space-y-1">
-                <Label htmlFor={`quantity-out-${index}`} className="text-xs">Quantity</Label>
-                <Input
-                  id={`quantity-out-${index}`}
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={item.quantity}
-                  onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
-                  className="text-xs h-8"
-                  required
-                />
-              </div>
-              <div className="w-32 space-y-1">
-                <Label htmlFor={`unitType-out-${index}`} className="text-xs">Unit Type</Label>
-                <Select
-                  value={item.unitType || ""}
-                  onValueChange={(val) => updateItem(index, "unitType", val)}
-                >
-                  <SelectTrigger className="text-xs h-8">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Sample 250ml" className="text-xs">Sample 250ml</SelectItem>
-                    <SelectItem value="1L Bottle" className="text-xs">1L Bottle</SelectItem>
-                    <SelectItem value="5L Can" className="text-xs">5L Can</SelectItem>
-                    <SelectItem value="20L Drum" className="text-xs">20L Drum</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {stockItems.length > 1 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeItem(index)}
-                  className="h-8 w-8 p-0"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
