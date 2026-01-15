@@ -37,6 +37,7 @@ export default function Outlets() {
   const clients = useQuery(api.clients.list);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOutlet, setEditingOutlet] = useState<any>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string>("all");
   const removeOutlet = useMutation(api.outlets.remove);
 
   const handleDelete = async (id: any) => {
@@ -61,6 +62,11 @@ export default function Outlets() {
   if (viewer === null) {
     return <Navigate to="/auth" />;
   }
+
+  // Filter outlets by selected client
+  const filteredOutlets = selectedClientId === "all"
+    ? outlets
+    : outlets.filter(outlet => outlet.client?._id === selectedClientId);
 
   return (
     <div className="min-h-screen bg-background">
@@ -108,6 +114,33 @@ export default function Outlets() {
             </p>
           </div>
 
+          {outlets.length > 0 && (
+            <div className="flex items-center gap-4">
+              <div className="w-64">
+                <Label htmlFor="client-filter" className="text-xs mb-2 block">Filter by Client</Label>
+                <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Select client" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Clients ({outlets.length} outlets)</SelectItem>
+                    {clients?.filter(c => c.isActive).map((client) => {
+                      const clientOutletCount = outlets.filter(o => o.client?._id === client._id).length;
+                      return (
+                        <SelectItem key={client._id} value={client._id}>
+                          {client.name} ({clientOutletCount} {clientOutletCount === 1 ? 'outlet' : 'outlets'})
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-sm text-muted-foreground pt-6">
+                Showing {filteredOutlets.length} of {outlets.length} outlets
+              </div>
+            </div>
+          )}
+
           {outlets.length === 0 ? (
             <div className="bg-card border border-border p-12 text-center">
               <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -142,7 +175,7 @@ export default function Outlets() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {outlets.map((outlet) => (
+                  {filteredOutlets.map((outlet) => (
                     <TableRow key={outlet._id}>
                       <TableCell className="text-xs font-medium">
                         {outlet.name}
