@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navigate, Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ShoppingCart, Plus, X, Edit, Settings } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Plus, X, Edit, Settings, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -37,6 +37,23 @@ export default function Orders() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<any>(null);
   const [editingOrderDetails, setEditingOrderDetails] = useState<any>(null);
+  const removeOrder = useMutation(api.orders.remove);
+
+  const handleDelete = async (order: any) => {
+    if (order.status === "delivered" || order.status === "partially_delivered") {
+      toast("Cannot delete orders that have been delivered. Cancel them instead.");
+      return;
+    }
+
+    if (confirm(`Are you sure you want to delete order ${order.orderNumber}? This action cannot be undone.`)) {
+      try {
+        await removeOrder({ id: order._id });
+        toast("Order deleted successfully");
+      } catch (error: any) {
+        toast(error.message || "Failed to delete order");
+      }
+    }
+  };
 
   if (viewer === undefined || orders === undefined) {
     return (
@@ -168,6 +185,16 @@ export default function Orders() {
                             title="Update Status"
                           >
                             <Settings className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(order)}
+                            className="h-7 px-2 text-destructive hover:text-destructive"
+                            title="Delete Order"
+                            disabled={order.status === "delivered" || order.status === "partially_delivered"}
+                          >
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>

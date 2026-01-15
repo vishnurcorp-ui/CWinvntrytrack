@@ -465,3 +465,43 @@ export const updateStatus = mutation({
     return args.id;
   },
 });
+
+export const remove = mutation({
+  args: { id: v.id("orders") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const order = await ctx.db.get(args.id);
+    if (!order) throw new Error("Order not found");
+
+    // Don't allow deleting delivered orders
+    if (order.status === "delivered" || order.status === "partially_delivered") {
+      throw new Error("Cannot delete orders that have been delivered. Cancel them instead.");
+    }
+
+    // Delete all order items
+    const orderItems = await ctx.db
+      .query("orderItems")
+      .withIndex("by_order", (q) => q.eq("orderId", args.id))
+      .take(100);
+
+    for (const item of orderItems) {
+      await ctx.db.delete(item._id);
+    }
+
+    // Delete any deliveries (shouldn't be any if not delivered, but cleanup)
+    const deliveries = await ctx.db
+      .query("deliveries")
+      .withIndex("by_order", (q) => q.eq("orderId", args.id))
+      .take(50);
+
+    for (const delivery of deliveries) {
+      await ctx.db.delete(delivery._id);
+    }
+
+    // Delete the order
+    await ctx.db.delete(args.id);
+    return args.id;
+  },
+});
