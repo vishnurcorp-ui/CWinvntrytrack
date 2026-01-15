@@ -353,7 +353,7 @@ function CreateOrderForm({ onSuccess }: { onSuccess: () => void }) {
                   id={`quantity-${index}`}
                   type="number"
                   min="1"
-                  step="0.01"
+                  step="1"
                   value={item.quantity}
                   onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
                   className="text-xs h-8"
@@ -383,7 +383,7 @@ function CreateOrderForm({ onSuccess }: { onSuccess: () => void }) {
                   id={`unitPrice-${index}`}
                   type="number"
                   min="0"
-                  step="0.01"
+                  step="1"
                   value={item.unitPrice || ""}
                   onChange={(e) => updateItem(index, "unitPrice", e.target.value ? Number(e.target.value) : undefined)}
                   placeholder="Optional"
@@ -693,7 +693,7 @@ function EditOrderForm({ order, onSuccess }: { order: any; onSuccess: () => void
                   id={`edit-quantity-${index}`}
                   type="number"
                   min="1"
-                  step="0.01"
+                  step="1"
                   value={item.quantity}
                   onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
                   className="text-xs h-8"
@@ -723,7 +723,7 @@ function EditOrderForm({ order, onSuccess }: { order: any; onSuccess: () => void
                   id={`edit-unitPrice-${index}`}
                   type="number"
                   min="0"
-                  step="0.01"
+                  step="1"
                   value={item.unitPrice || ""}
                   onChange={(e) => updateItem(index, "unitPrice", e.target.value ? Number(e.target.value) : undefined)}
                   placeholder="Optional"
