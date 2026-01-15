@@ -70,3 +70,29 @@ export const getLowStockSummary = query({
     return lowStockItems;
   },
 });
+
+export const getPendingOrders = query({
+  args: {},
+  handler: async (ctx) => {
+    // Get all pending orders (limited to 50 most recent)
+    const orders = await ctx.db
+      .query("orders")
+      .withIndex("by_status", (q) => q.eq("status", "pending"))
+      .order("desc")
+      .take(50);
+
+    const enriched = await Promise.all(
+      orders.map(async (order) => {
+        const outlet = await ctx.db.get(order.outletId);
+        const client = await ctx.db.get(order.clientId);
+        return {
+          ...order,
+          outlet,
+          client,
+        };
+      })
+    );
+
+    return enriched;
+  },
+});

@@ -124,13 +124,15 @@ function DashboardContent() {
   const stats = useQuery(api.dashboard.getStats);
   const recentOrders = useQuery(api.dashboard.getRecentOrders);
   const lowStockItems = useQuery(api.dashboard.getLowStockSummary);
+  const pendingOrdersList = useQuery(api.dashboard.getPendingOrders);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [showAllPending, setShowAllPending] = useState(false);
   const selectedOrder = useQuery(
     api.orders.getById,
     selectedOrderId ? { id: selectedOrderId as any } : "skip"
   );
 
-  if (stats === undefined || recentOrders === undefined || lowStockItems === undefined) {
+  if (stats === undefined || recentOrders === undefined || lowStockItems === undefined || pendingOrdersList === undefined) {
     return <div className="text-sm text-muted-foreground">Loading...</div>;
   }
 
@@ -192,6 +194,54 @@ function DashboardContent() {
               </p>
             </div>
           </div>
+        </motion.div>
+      )}
+
+      {pendingOrders > 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="bg-card border border-border"
+        >
+          <div
+            className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={() => setShowAllPending(!showAllPending)}
+          >
+            <div className="flex items-center gap-3">
+              <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <h3 className="text-sm font-medium">Pending Orders</h3>
+                <p className="text-xs text-muted-foreground">
+                  {pendingOrders} order{pendingOrders > 1 ? 's' : ''} awaiting processing
+                </p>
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" className="text-xs">
+              {showAllPending ? 'Hide' : 'View All'}
+            </Button>
+          </div>
+
+          {showAllPending && (
+            <div className="border-t border-border p-4 space-y-1 max-h-96 overflow-y-auto">
+              {pendingOrdersList.map((order) => (
+                <div
+                  key={order._id}
+                  onClick={() => setSelectedOrderId(order._id)}
+                  className="flex items-center justify-between py-2 px-3 hover:bg-muted/50 transition-colors cursor-pointer rounded"
+                >
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{order.orderNumber}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {order.client?.name} - {order.outlet?.name}
+                    </p>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {new Date(order.orderDate).toLocaleDateString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </motion.div>
       )}
 
