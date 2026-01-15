@@ -12,6 +12,7 @@ import type * as auth from "../auth.js";
 import type * as auth_emailOtp from "../auth/emailOtp.js";
 import type * as clients from "../clients.js";
 import type * as dashboard from "../dashboard.js";
+import type * as expenses from "../expenses.js";
 import type * as http from "../http.js";
 import type * as inventory from "../inventory.js";
 import type * as inventoryCorrections from "../inventoryCorrections.js";
@@ -21,6 +22,7 @@ import type * as outlets from "../outlets.js";
 import type * as products from "../products.js";
 import type * as seedData from "../seedData.js";
 import type * as stockMovements from "../stockMovements.js";
+import type * as testExpenses from "../testExpenses.js";
 import type * as users from "../users.js";
 
 import type {
@@ -34,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   "auth/emailOtp": typeof auth_emailOtp;
   clients: typeof clients;
   dashboard: typeof dashboard;
+  expenses: typeof expenses;
   http: typeof http;
   inventory: typeof inventory;
   inventoryCorrections: typeof inventoryCorrections;
@@ -43,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   products: typeof products;
   seedData: typeof seedData;
   stockMovements: typeof stockMovements;
+  testExpenses: typeof testExpenses;
   users: typeof users;
 }>;
 

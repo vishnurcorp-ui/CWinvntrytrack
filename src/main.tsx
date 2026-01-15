@@ -22,6 +22,7 @@ import Clients from "./pages/Clients.tsx";
 import Outlets from "./pages/Outlets.tsx";
 import StockMovements from "./pages/StockMovements.tsx";
 import Corrections from "./pages/Corrections.tsx";
+import Expenses from "./pages/Expenses.tsx";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
@@ -70,6 +71,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/outlets" element={<Outlets />} />
             <Route path="/stock-movements" element={<StockMovements />} />
             <Route path="/corrections" element={<Corrections />} />
+            <Route path="/expenses" element={<Expenses />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

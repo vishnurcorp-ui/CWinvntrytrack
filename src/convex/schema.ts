@@ -190,7 +190,28 @@ const schema = defineSchema(
     }).index("by_type", ["type"])
       .index("by_product", ["productId"])
       .index("by_location", ["locationId"])
-      .index("by_resolved", ["isResolved"])
+      .index("by_resolved", ["isResolved"]),
+
+    // Expenses
+    expenses: defineTable({
+      date: v.number(),
+      category: v.union(
+        v.literal("delivery"),
+        v.literal("operational"),
+        v.literal("other")
+      ),
+      vendor: v.string(),
+      description: v.string(),
+      amount: v.number(),
+      paymentMode: v.string(),
+      orderId: v.optional(v.id("orders")),
+      outletId: v.optional(v.id("outlets")),
+      notes: v.optional(v.string()),
+      createdBy: v.id("users"),
+    }).index("by_category", ["category"])
+      .index("by_order", ["orderId"])
+      .index("by_outlet", ["outletId"])
+      .index("by_date", ["date"])
   },
   {
     schemaValidation: false,

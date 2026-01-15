@@ -13,7 +13,8 @@ import {
   AlertTriangle,
   LogOut,
   BarChart3,
-  MapPin
+  MapPin,
+  DollarSign
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -54,6 +55,7 @@ export default function Dashboard() {
     { name: "Products", path: "/products", icon: Package },
     { name: "Stock", path: "/stock-movements", icon: TrendingUp },
     { name: "Orders", path: "/orders", icon: ShoppingCart },
+    { name: "Expenses", path: "/expenses", icon: DollarSign },
     { name: "Locations", path: "/locations", icon: Warehouse },
     { name: "Clients", path: "/clients", icon: Users },
     { name: "Outlets", path: "/outlets", icon: MapPin },
