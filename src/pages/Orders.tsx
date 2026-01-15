@@ -490,7 +490,6 @@ function UpdateOrderStatusForm({ order, onSuccess }: { order: any; onSuccess: ()
     { value: "processing", label: "Processing", description: "Order is being prepared" },
     { value: "packed", label: "Packed", description: "Order has been packed and ready for shipment" },
     { value: "shipped", label: "Shipped", description: "Order has been dispatched" },
-    { value: "partially_delivered", label: "Partially Delivered", description: "Some items delivered, awaiting remaining items" },
     { value: "delivered", label: "Delivered", description: "Order has been fully delivered to customer" },
     { value: "cancelled", label: "Cancelled", description: "Order has been cancelled" },
   ];
@@ -721,8 +720,13 @@ function UpdateOrderStatusForm({ order, onSuccess }: { order: any; onSuccess: ()
           </SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground">
-          Current status: <span className="capitalize font-medium">{order.status}</span>
+          Current status: <span className="capitalize font-medium">{order.status.replace('_', ' ')}</span>
         </p>
+        {order.status === "partially_delivered" && (
+          <p className="text-xs text-amber-600 mt-1">
+            Note: This order is partially delivered. Continue making deliveries to complete it.
+          </p>
+        )}
       </div>
 
       {selectedStatus === "delivered" && (
