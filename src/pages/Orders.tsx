@@ -134,7 +134,7 @@ export default function Orders() {
                         </div>
                       </TableCell>
                       <TableCell className="text-xs">
-                        {order.items?.length || 0} item(s)
+                        {order.itemCount || 0} item(s)
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {new Date(order.orderDate).toLocaleDateString()}

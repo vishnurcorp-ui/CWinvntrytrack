@@ -6,29 +6,27 @@ import { internal } from "./_generated/api";
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const orders = await ctx.db.query("orders").collect();
+    // Limit to 100 most recent orders
+    const orders = await ctx.db.query("orders").order("desc").take(100);
 
     const enriched = await Promise.all(
       orders.map(async (order) => {
         const outlet = await ctx.db.get(order.outletId);
         const client = await ctx.db.get(order.clientId);
-        const items = await ctx.db
+
+        // Don't load items in list view - only load when viewing individual order
+        // This reduces N+1 queries significantly
+        const itemCount = await ctx.db
           .query("orderItems")
           .withIndex("by_order", (q) => q.eq("orderId", order._id))
-          .collect();
-
-        const enrichedItems = await Promise.all(
-          items.map(async (item) => {
-            const product = await ctx.db.get(item.productId);
-            return { ...item, product };
-          })
-        );
+          .collect()
+          .then(items => items.length);
 
         return {
           ...order,
           outlet,
           client,
-          items: enrichedItems,
+          itemCount,
         };
       })
     );
@@ -91,27 +89,10 @@ export const listByOutlet = query({
     const orders = await ctx.db
       .query("orders")
       .withIndex("by_outlet", (q) => q.eq("outletId", args.outletId))
-      .collect();
+      .take(100);
 
-    const enriched = await Promise.all(
-      orders.map(async (order) => {
-        const items = await ctx.db
-          .query("orderItems")
-          .withIndex("by_order", (q) => q.eq("orderId", order._id))
-          .collect();
-
-        const enrichedItems = await Promise.all(
-          items.map(async (item) => {
-            const product = await ctx.db.get(item.productId);
-            return { ...item, product };
-          })
-        );
-
-        return { ...order, items: enrichedItems };
-      })
-    );
-
-    return enriched;
+    // Don't load items in list queries
+    return orders;
   },
 });
 
@@ -130,7 +111,7 @@ export const listByStatus = query({
     const orders = await ctx.db
       .query("orders")
       .withIndex("by_status", (q) => q.eq("status", args.status))
-      .collect();
+      .take(100);
 
     const enriched = await Promise.all(
       orders.map(async (order) => {
@@ -181,14 +162,15 @@ export const create = mutation({
     const todayEnd = todayStart + 24 * 60 * 60 * 1000;
 
     // Count orders for this outlet today
-    const todayOrders = await ctx.db
+    // Limit query to today's orders only - much faster than filtering all orders
+    const todayOrdersForOutlet = await ctx.db
       .query("orders")
       .withIndex("by_outlet", (q) => q.eq("outletId", args.outletId))
+      .filter((q) => q.and(
+        q.gte(q.field("orderDate"), todayStart),
+        q.lt(q.field("orderDate"), todayEnd)
+      ))
       .collect();
-
-    const todayOrdersForOutlet = todayOrders.filter(
-      (order) => order.orderDate >= todayStart && order.orderDate < todayEnd
-    );
 
     const sequenceNumber = String(todayOrdersForOutlet.length + 1).padStart(2, '0');
     const orderNumber = `${outletCode}-${dateStr}-${sequenceNumber}`;

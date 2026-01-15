@@ -5,7 +5,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const outlets = await ctx.db.query("outlets").collect();
+    const outlets = await ctx.db.query("outlets").take(200);
 
     const enriched = await Promise.all(
       outlets.map(async (outlet) => {
@@ -41,7 +41,7 @@ export const listByClient = query({
     return await ctx.db
       .query("outlets")
       .withIndex("by_client", (q) => q.eq("clientId", args.clientId))
-      .collect();
+      .take(200);
   },
 });
 
@@ -51,7 +51,7 @@ export const listByState = query({
     const outlets = await ctx.db
       .query("outlets")
       .withIndex("by_state", (q) => q.eq("state", args.state))
-      .collect();
+      .take(200);
 
     const enriched = await Promise.all(
       outlets.map(async (outlet) => {

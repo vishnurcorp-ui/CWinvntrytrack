@@ -29,7 +29,7 @@ export const getByLocation = query({
     const inventory = await ctx.db
       .query("inventory")
       .withIndex("by_location", (q) => q.eq("locationId", args.locationId))
-      .collect();
+      .take(200);
 
     const enriched = await Promise.all(
       inventory.map(async (item) => {
@@ -51,7 +51,7 @@ export const getByProduct = query({
     const inventory = await ctx.db
       .query("inventory")
       .withIndex("by_product", (q) => q.eq("productId", args.productId))
-      .collect();
+      .take(100);
 
     const enriched = await Promise.all(
       inventory.map(async (item) => {

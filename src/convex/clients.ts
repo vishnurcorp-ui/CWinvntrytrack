@@ -5,7 +5,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("clients").collect();
+    return await ctx.db.query("clients").take(200);
   },
 });
 
@@ -30,7 +30,7 @@ export const listByType = query({
     return await ctx.db
       .query("clients")
       .withIndex("by_type", (q) => q.eq("type", args.type))
-      .collect();
+      .take(200);
   },
 });
 

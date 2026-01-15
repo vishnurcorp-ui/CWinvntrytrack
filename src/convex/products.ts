@@ -8,7 +8,7 @@ export const list = query({
     const products = await ctx.db
       .query("products")
       .withIndex("by_category")
-      .collect();
+      .take(200);
     return products;
   },
 });
@@ -36,7 +36,7 @@ export const listByCategory = query({
     return await ctx.db
       .query("products")
       .withIndex("by_category", (q) => q.eq("category", args.category))
-      .collect();
+      .take(200);
   },
 });
 

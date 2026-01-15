@@ -3,20 +3,16 @@ import { query } from "./_generated/server";
 export const getStats = query({
   args: {},
   handler: async (ctx) => {
-    const products = await ctx.db.query("products").collect();
+    // Limit products query for faster stats
+    const products = await ctx.db.query("products").take(200);
     const inventory = await ctx.db.query("inventory").take(100);
     const orders = await ctx.db.query("orders").take(50);
 
     const activeProducts = products.filter((p) => p.isActive).length;
     const totalStock = inventory.reduce((sum, item) => sum + item.quantity, 0);
 
-    let lowStockCount = 0;
-    for (const item of inventory) {
-      const product = await ctx.db.get(item.productId);
-      if (product && item.quantity <= 10) {
-        lowStockCount++;
-      }
-    }
+    // Simplified low stock count without additional queries
+    const lowStockCount = inventory.filter((item) => item.quantity <= 10).length;
 
     const pendingOrders = orders.filter((o) => o.status === "pending").length;
 
