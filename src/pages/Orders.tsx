@@ -455,12 +455,14 @@ function UpdateOrderStatusForm({ order, onSuccess }: { order: any; onSuccess: ()
   const [showDeliveryForm, setShowDeliveryForm] = useState(false);
   const [deliveredQuantities, setDeliveredQuantities] = useState<Record<string, number>>({});
 
-  // Initialize delivered quantities with ordered quantities
+  // Initialize delivered quantities with remaining (not delivered) quantities
   useState(() => {
     if (order.items) {
       const initial: Record<string, number> = {};
       for (const item of order.items) {
-        initial[item._id] = item.quantity;
+        const previouslyDelivered = item.deliveredQuantity || 0;
+        const remaining = item.quantity - previouslyDelivered;
+        initial[item._id] = remaining; // Default to delivering all remaining
       }
       setDeliveredQuantities(initial);
     }
@@ -471,7 +473,8 @@ function UpdateOrderStatusForm({ order, onSuccess }: { order: any; onSuccess: ()
     { value: "processing", label: "Processing", description: "Order is being prepared" },
     { value: "packed", label: "Packed", description: "Order has been packed and ready for shipment" },
     { value: "shipped", label: "Shipped", description: "Order has been dispatched" },
-    { value: "delivered", label: "Delivered", description: "Order has been delivered to customer" },
+    { value: "partially_delivered", label: "Partially Delivered", description: "Some items delivered, awaiting remaining items" },
+    { value: "delivered", label: "Delivered", description: "Order has been fully delivered to customer" },
     { value: "cancelled", label: "Cancelled", description: "Order has been cancelled" },
   ];
 
@@ -558,52 +561,79 @@ function UpdateOrderStatusForm({ order, onSuccess }: { order: any; onSuccess: ()
         </div>
 
         <div className="space-y-2">
-          <Label className="text-xs">Delivered Quantities</Label>
+          <Label className="text-xs">
+            {order.deliveries?.length > 0 ? `Delivery #${order.deliveries.length + 1}` : "Delivered Quantities"}
+          </Label>
           <p className="text-xs text-muted-foreground mb-2">
-            Enter the actual quantity delivered for each item (can be less than ordered if partial delivery)
+            {order.deliveries?.length > 0
+              ? "Enter quantities for this delivery (remaining items only)"
+              : "Enter the actual quantity delivered for each item"}
           </p>
           <div className="border border-border rounded-md overflow-hidden">
-            {order.items?.map((item: any) => (
-              <div key={item._id} className="p-3 border-b border-border last:border-0">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{item.product?.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Ordered: {item.quantity} {item.product?.unit}
-                      {item.unitType && ` (${item.unitType})`}
-                    </p>
+            {order.items?.map((item: any) => {
+              const previouslyDelivered = item.deliveredQuantity || 0;
+              const remaining = item.quantity - previouslyDelivered;
+              const maxDeliverable = remaining;
+
+              return (
+                <div key={item._id} className="p-3 border-b border-border last:border-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{item.product?.name}</p>
+                      <div className="text-xs text-muted-foreground space-y-0.5">
+                        <p>Ordered: {item.quantity} {item.product?.unit} {item.unitType && `(${item.unitType})`}</p>
+                        {previouslyDelivered > 0 && (
+                          <>
+                            <p className="text-green-600">
+                              ✓ Previously delivered: {previouslyDelivered} {item.product?.unit}
+                            </p>
+                            <p className="font-medium text-amber-600">
+                              Remaining: {remaining} {item.product?.unit}
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
+                  {remaining > 0 ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`qty-${item._id}`} className="text-xs whitespace-nowrap">
+                          Deliver now:
+                        </Label>
+                        <Input
+                          id={`qty-${item._id}`}
+                          type="number"
+                          min="0"
+                          max={maxDeliverable}
+                          value={deliveredQuantities[item._id] || 0}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value) || 0;
+                            setDeliveredQuantities(prev => ({
+                              ...prev,
+                              [item._id]: Math.min(Math.max(0, value), maxDeliverable)
+                            }));
+                          }}
+                          className="text-sm w-24"
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {item.product?.unit}
+                        </span>
+                      </div>
+                      {deliveredQuantities[item._id] < remaining && deliveredQuantities[item._id] !== undefined && (
+                        <p className="text-xs text-blue-600 mt-1">
+                          ℹ Will remain pending: {remaining - (deliveredQuantities[item._id] || 0)} {item.product?.unit}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xs text-green-600 font-medium">
+                      ✓ Fully delivered
+                    </p>
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor={`qty-${item._id}`} className="text-xs whitespace-nowrap">
-                    Delivered:
-                  </Label>
-                  <Input
-                    id={`qty-${item._id}`}
-                    type="number"
-                    min="0"
-                    max={item.quantity}
-                    value={deliveredQuantities[item._id] || 0}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value) || 0;
-                      setDeliveredQuantities(prev => ({
-                        ...prev,
-                        [item._id]: Math.min(Math.max(0, value), item.quantity)
-                      }));
-                    }}
-                    className="text-sm w-24"
-                  />
-                  <span className="text-xs text-muted-foreground">
-                    {item.product?.unit}
-                  </span>
-                </div>
-                {deliveredQuantities[item._id] < item.quantity && (
-                  <p className="text-xs text-amber-600 mt-1">
-                    ⚠ Partial delivery: {item.quantity - deliveredQuantities[item._id]} {item.product?.unit} short
-                  </p>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

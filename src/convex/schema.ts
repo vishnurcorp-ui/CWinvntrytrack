@@ -110,12 +110,13 @@ const schema = defineSchema(
         v.literal("processing"),
         v.literal("packed"),
         v.literal("shipped"),
+        v.literal("partially_delivered"), // Some items delivered, some pending
         v.literal("delivered"),
         v.literal("cancelled")
       ),
       orderDate: v.number(),
       expectedDeliveryDate: v.optional(v.number()),
-      actualDeliveryDate: v.optional(v.number()),
+      actualDeliveryDate: v.optional(v.number()), // Final delivery completion date
       totalAmount: v.optional(v.number()),
       notes: v.optional(v.string()),
       createdBy: v.id("users"),
@@ -128,13 +129,31 @@ const schema = defineSchema(
     orderItems: defineTable({
       orderId: v.id("orders"),
       productId: v.id("products"),
-      quantity: v.number(),
-      deliveredQuantity: v.optional(v.number()), // Actual quantity delivered (for partial deliveries)
+      quantity: v.number(), // Total ordered quantity
+      deliveredQuantity: v.optional(v.number()), // Total delivered so far (cumulative across all deliveries)
       unitType: v.optional(v.string()), // e.g., "Sample 250ml", "1L Bottle", "5L Can"
       unitPrice: v.optional(v.number()),
       totalPrice: v.optional(v.number()),
     }).index("by_order", ["orderId"])
       .index("by_product", ["productId"]),
+
+    // Delivery Records (tracks each delivery attempt for an order)
+    deliveries: defineTable({
+      orderId: v.id("orders"),
+      deliveryNumber: v.number(), // 1st delivery, 2nd delivery, etc.
+      deliveryDate: v.number(),
+      locationId: v.id("locations"), // Warehouse location items were delivered from
+      items: v.array(
+        v.object({
+          orderItemId: v.id("orderItems"),
+          productId: v.id("products"),
+          quantityDelivered: v.number(),
+        })
+      ),
+      notes: v.optional(v.string()),
+      deliveredBy: v.id("users"),
+    }).index("by_order", ["orderId"])
+      .index("by_date", ["deliveryDate"]),
 
     // Stock Movements (in/out tracking)
     stockMovements: defineTable({

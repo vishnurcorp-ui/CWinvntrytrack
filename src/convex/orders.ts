@@ -57,11 +57,30 @@ export const getById = query({
       })
     );
 
+    // Get delivery history
+    const deliveries = await ctx.db
+      .query("deliveries")
+      .withIndex("by_order", (q) => q.eq("orderId", order._id))
+      .collect();
+
+    const enrichedDeliveries = await Promise.all(
+      deliveries.map(async (delivery) => {
+        const location = await ctx.db.get(delivery.locationId);
+        const user = await ctx.db.get(delivery.deliveredBy);
+        return {
+          ...delivery,
+          location,
+          deliveredByUser: user,
+        };
+      })
+    );
+
     return {
       ...order,
       outlet,
       client,
       items: enrichedItems,
+      deliveries: enrichedDeliveries,
     };
   },
 });
@@ -254,6 +273,7 @@ export const markDelivered = mutation({
         deliveredQuantity: v.number(),
       })
     ),
+    notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -263,7 +283,7 @@ export const markDelivered = mutation({
     if (!order) throw new Error("Order not found");
 
     if (order.status === "delivered") {
-      throw new Error("Order is already marked as delivered");
+      throw new Error("Order is already fully delivered");
     }
 
     // Get all order items
@@ -272,25 +292,58 @@ export const markDelivered = mutation({
       .withIndex("by_order", (q) => q.eq("orderId", args.id))
       .collect();
 
+    // Get existing deliveries to calculate delivery number
+    const existingDeliveries = await ctx.db
+      .query("deliveries")
+      .withIndex("by_order", (q) => q.eq("orderId", args.id))
+      .collect();
+
+    const deliveryNumber = existingDeliveries.length + 1;
+
+    // Prepare delivery record items
+    const deliveryRecordItems: Array<{
+      orderItemId: any;
+      productId: any;
+      quantityDelivered: number;
+    }> = [];
+
+    let allItemsFullyDelivered = true;
+
     // Update delivered quantities for each item and create stock movements
     for (const deliveredItem of args.deliveredItems) {
       const orderItem = orderItems.find((item) => item._id === deliveredItem.itemId);
       if (!orderItem) continue;
 
-      // Validate delivered quantity doesn't exceed ordered quantity
-      if (deliveredItem.deliveredQuantity > orderItem.quantity) {
+      const previouslyDelivered = orderItem.deliveredQuantity || 0;
+      const newTotalDelivered = previouslyDelivered + deliveredItem.deliveredQuantity;
+      const remainingQuantity = orderItem.quantity - previouslyDelivered;
+
+      // Validate: can't deliver more than remaining
+      if (deliveredItem.deliveredQuantity > remainingQuantity) {
         throw new Error(
-          `Delivered quantity (${deliveredItem.deliveredQuantity}) cannot exceed ordered quantity (${orderItem.quantity})`
+          `Cannot deliver ${deliveredItem.deliveredQuantity} units. Only ${remainingQuantity} units remaining for this item.`
         );
       }
 
-      // Update the order item with delivered quantity
+      // Update the order item with cumulative delivered quantity
       await ctx.db.patch(deliveredItem.itemId, {
-        deliveredQuantity: deliveredItem.deliveredQuantity,
+        deliveredQuantity: newTotalDelivered,
       });
+
+      // Check if this item still has pending quantity
+      if (newTotalDelivered < orderItem.quantity) {
+        allItemsFullyDelivered = false;
+      }
 
       // Only create stock movement and deduct inventory if quantity > 0
       if (deliveredItem.deliveredQuantity > 0) {
+        // Add to delivery record
+        deliveryRecordItems.push({
+          orderItemId: deliveredItem.itemId,
+          productId: orderItem.productId,
+          quantityDelivered: deliveredItem.deliveredQuantity,
+        });
+
         // Insert stock movement record
         await ctx.db.insert("stockMovements", {
           productId: orderItem.productId,
@@ -299,7 +352,7 @@ export const markDelivered = mutation({
           quantity: deliveredItem.deliveredQuantity,
           unitType: orderItem.unitType,
           orderId: args.id,
-          notes: `Order ${order.orderNumber} delivered (${deliveredItem.deliveredQuantity} of ${orderItem.quantity} ordered)`,
+          notes: `Order ${order.orderNumber} - Delivery #${deliveryNumber} (${deliveredItem.deliveredQuantity} of ${orderItem.quantity} ordered, ${newTotalDelivered} total delivered)`,
           performedBy: userId,
           movementDate: Date.now(),
         });
@@ -313,11 +366,27 @@ export const markDelivered = mutation({
       }
     }
 
-    // Mark order as delivered
-    await ctx.db.patch(args.id, {
-      status: "delivered" as const,
-      actualDeliveryDate: Date.now(),
+    // Create delivery record
+    await ctx.db.insert("deliveries", {
+      orderId: args.id,
+      deliveryNumber,
+      deliveryDate: Date.now(),
+      locationId: args.locationId,
+      items: deliveryRecordItems,
+      notes: args.notes,
+      deliveredBy: userId,
     });
+
+    // Update order status
+    const newStatus = allItemsFullyDelivered ? ("delivered" as const) : ("partially_delivered" as const);
+    const updates: any = { status: newStatus };
+
+    // Only set final delivery date if all items are delivered
+    if (allItemsFullyDelivered) {
+      updates.actualDeliveryDate = Date.now();
+    }
+
+    await ctx.db.patch(args.id, updates);
 
     return args.id;
   },
