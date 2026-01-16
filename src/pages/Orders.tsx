@@ -35,9 +35,15 @@ export default function Orders() {
   const viewer = useQuery(api.users.currentUser);
   const orders = useQuery(api.orders.list);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingOrder, setEditingOrder] = useState<any>(null);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editingOrderDetails, setEditingOrderDetails] = useState<any>(null);
   const removeOrder = useMutation(api.orders.remove);
+
+  // Fetch full order details when updating status
+  const editingOrder = useQuery(
+    api.orders.getById,
+    editingOrderId ? { id: editingOrderId as any } : "skip"
+  );
 
   const handleDelete = async (order: any) => {
     if (order.status === "delivered" || order.status === "partially_delivered") {
@@ -180,7 +186,7 @@ export default function Orders() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setEditingOrder(order)}
+                            onClick={() => setEditingOrderId(order._id)}
                             className="h-7 px-2"
                             title="Update Status"
                           >
@@ -221,7 +227,7 @@ export default function Orders() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!editingOrder} onOpenChange={() => setEditingOrder(null)}>
+      <Dialog open={!!editingOrderId} onOpenChange={() => setEditingOrderId(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Update Order Status</DialogTitle>
@@ -229,7 +235,7 @@ export default function Orders() {
           {editingOrder && (
             <UpdateOrderStatusForm
               order={editingOrder}
-              onSuccess={() => setEditingOrder(null)}
+              onSuccess={() => setEditingOrderId(null)}
             />
           )}
         </DialogContent>
