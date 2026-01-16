@@ -623,24 +623,26 @@ function UpdateOrderStatusForm({ order, onSuccess }: { order: any; onSuccess: ()
                         <Label htmlFor={`qty-${item._id}`} className="text-xs whitespace-nowrap">
                           Deliver now:
                         </Label>
-                        <Input
-                          id={`qty-${item._id}`}
-                          type="number"
-                          min="0"
-                          max={maxDeliverable}
-                          value={deliveredQuantities[item._id] || 0}
-                          onChange={(e) => {
-                            const value = parseInt(e.target.value) || 0;
+                        <Select
+                          value={String(deliveredQuantities[item._id] || 0)}
+                          onValueChange={(value) => {
                             setDeliveredQuantities(prev => ({
                               ...prev,
-                              [item._id]: Math.min(Math.max(0, value), maxDeliverable)
+                              [item._id]: parseInt(value)
                             }));
                           }}
-                          className="text-sm w-24"
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          {item.product?.unit}
-                        </span>
+                        >
+                          <SelectTrigger className="text-sm w-28">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: maxDeliverable + 1 }, (_, i) => i).map((qty) => (
+                              <SelectItem key={qty} value={String(qty)}>
+                                {qty} {item.product?.unit}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       {deliveredQuantities[item._id] < remaining && deliveredQuantities[item._id] !== undefined && (
                         <p className="text-xs text-blue-600 mt-1">
