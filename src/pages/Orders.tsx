@@ -497,8 +497,14 @@ function UpdateOrderStatusForm({ order, onSuccess }: { order: any; onSuccess: ()
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // If marking as delivered, show delivery form instead
+    // If marking as delivered OR order is already partially delivered, show delivery form
     if (selectedStatus === "delivered" && !showDeliveryForm) {
+      setShowDeliveryForm(true);
+      return;
+    }
+
+    // Also show delivery form if order is partially delivered and user wants to continue
+    if (order.status === "partially_delivered" && selectedStatus === "delivered" && !showDeliveryForm) {
       setShowDeliveryForm(true);
       return;
     }
@@ -749,7 +755,7 @@ function UpdateOrderStatusForm({ order, onSuccess }: { order: any; onSuccess: ()
           Cancel
         </Button>
         <Button type="submit" size="sm" disabled={isSubmitting} className="text-xs">
-          {isSubmitting ? "Updating..." : "Update Status"}
+          {isSubmitting ? "Updating..." : (selectedStatus === "delivered" ? "Continue to Delivery" : "Update Status")}
         </Button>
       </div>
     </form>
