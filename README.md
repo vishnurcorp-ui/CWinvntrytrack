@@ -1,4 +1,5 @@
 ## Overview
+<img width="1108" height="595" alt="image" src="https://github.com/user-attachments/assets/f83f0c6d-3817-4051-b644-d390be8548e7" />
 
 This project uses the following tech stack:
 - Vite
