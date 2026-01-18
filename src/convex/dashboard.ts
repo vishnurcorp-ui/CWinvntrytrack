@@ -16,12 +16,14 @@ export const getStats = query({
     const lowStockCount = inventory.filter((item) => item.quantity <= 10).length;
 
     const pendingOrders = orders.filter((o) => o.status === "pending").length;
+    const partiallyDeliveredOrders = orders.filter((o) => o.status === "partially_delivered").length;
 
     return {
       activeProducts,
       totalStock,
       lowStockCount,
       pendingOrders,
+      partiallyDeliveredOrders,
     };
   },
 });
@@ -89,6 +91,47 @@ export const getPendingOrders = query({
           ...order,
           outlet,
           client,
+        };
+      })
+    );
+
+    return enriched;
+  },
+});
+
+export const getPartiallyDeliveredOrders = query({
+  args: {},
+  handler: async (ctx) => {
+    // Get all partially delivered orders (limited to 50 most recent)
+    const orders = await ctx.db
+      .query("orders")
+      .withIndex("by_status", (q) => q.eq("status", "partially_delivered"))
+      .order("desc")
+      .take(50);
+
+    const enriched = await Promise.all(
+      orders.map(async (order) => {
+        const outlet = await ctx.db.get(order.outletId);
+        const client = await ctx.db.get(order.clientId);
+
+        // Get items to calculate remaining quantities
+        const items = await ctx.db
+          .query("orderItems")
+          .withIndex("by_order", (q) => q.eq("orderId", order._id))
+          .take(100);
+
+        let totalRemaining = 0;
+        for (const item of items) {
+          const delivered = item.deliveredQuantity || 0;
+          const remaining = item.quantity - delivered;
+          totalRemaining += remaining;
+        }
+
+        return {
+          ...order,
+          outlet,
+          client,
+          totalRemainingItems: totalRemaining,
         };
       })
     );

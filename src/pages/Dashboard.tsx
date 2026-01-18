@@ -125,18 +125,20 @@ function DashboardContent() {
   const recentOrders = useQuery(api.dashboard.getRecentOrders);
   const lowStockItems = useQuery(api.dashboard.getLowStockSummary);
   const pendingOrdersList = useQuery(api.dashboard.getPendingOrders);
+  const partiallyDeliveredOrdersList = useQuery(api.dashboard.getPartiallyDeliveredOrders);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [showAllPending, setShowAllPending] = useState(false);
+  const [showAllPartiallyDelivered, setShowAllPartiallyDelivered] = useState(false);
   const selectedOrder = useQuery(
     api.orders.getById,
     selectedOrderId ? { id: selectedOrderId as any } : "skip"
   );
 
-  if (stats === undefined || recentOrders === undefined || lowStockItems === undefined || pendingOrdersList === undefined) {
+  if (stats === undefined || recentOrders === undefined || lowStockItems === undefined || pendingOrdersList === undefined || partiallyDeliveredOrdersList === undefined) {
     return <div className="text-sm text-muted-foreground">Loading...</div>;
   }
 
-  const { activeProducts, totalStock, lowStockCount, pendingOrders } = stats;
+  const { activeProducts, totalStock, lowStockCount, pendingOrders, partiallyDeliveredOrders } = stats;
 
   const statsDisplay = [
     { label: "Active Products", value: activeProducts, icon: Package },
@@ -233,6 +235,57 @@ function DashboardContent() {
                     <p className="text-sm font-medium">{order.orderNumber}</p>
                     <p className="text-xs text-muted-foreground">
                       {order.client?.name} - {order.outlet?.name}
+                    </p>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {new Date(order.orderDate).toLocaleDateString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      {partiallyDeliveredOrders > 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="bg-card border border-border"
+        >
+          <div
+            className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={() => setShowAllPartiallyDelivered(!showAllPartiallyDelivered)}
+          >
+            <div className="flex items-center gap-3">
+              <ShoppingCart className="h-5 w-5 text-amber-600" />
+              <div>
+                <h3 className="text-sm font-medium">Partially Delivered Orders</h3>
+                <p className="text-xs text-muted-foreground">
+                  {partiallyDeliveredOrders} order{partiallyDeliveredOrders > 1 ? 's' : ''} with pending items
+                </p>
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" className="text-xs">
+              {showAllPartiallyDelivered ? 'Hide' : 'View All'}
+            </Button>
+          </div>
+
+          {showAllPartiallyDelivered && (
+            <div className="border-t border-border p-4 space-y-1 max-h-96 overflow-y-auto">
+              {partiallyDeliveredOrdersList.map((order) => (
+                <div
+                  key={order._id}
+                  onClick={() => setSelectedOrderId(order._id)}
+                  className="flex items-center justify-between py-2 px-3 hover:bg-muted/50 transition-colors cursor-pointer rounded"
+                >
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{order.orderNumber}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {order.client?.name} - {order.outlet?.name}
+                    </p>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      {order.totalRemainingItems} item{order.totalRemainingItems > 1 ? 's' : ''} remaining
                     </p>
                   </div>
                   <div className="text-xs text-muted-foreground">
