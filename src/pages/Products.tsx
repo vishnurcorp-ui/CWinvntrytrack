@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navigate, Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Package, Edit, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Package, Edit, Trash2, Search } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Id } from "@/convex/_generated/dataModel";
@@ -31,6 +31,7 @@ export default function Products() {
   const inventory = useQuery(api.inventory.list);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const removeProduct = useMutation(api.products.remove);
 
   if (viewer === undefined || products === undefined || inventory === undefined) {
@@ -60,6 +61,16 @@ export default function Products() {
       }
     }
   };
+
+  // Filter products based on search
+  const filteredProducts = products?.filter((product) => {
+    const matchesSearch =
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.category.toLowerCase().includes(searchQuery.toLowerCase());
+
+    return matchesSearch;
+  }) || [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -114,7 +125,24 @@ export default function Products() {
               </Button>
             </div>
           ) : (
-            <div className="bg-card border border-border">
+            <>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, SKU, or category..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 text-sm"
+                />
+              </div>
+
+              {filteredProducts.length === 0 ? (
+                <div className="bg-card border border-border p-12 text-center">
+                  <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-sm text-muted-foreground">No products found matching your search</p>
+                </div>
+              ) : (
+                <div className="bg-card border border-border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -128,7 +156,7 @@ export default function Products() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.map((product) => {
+                  {filteredProducts.map((product) => {
                     const totalStock = getProductStock(product._id);
                     return (
                     <TableRow key={product._id}>
@@ -180,6 +208,8 @@ export default function Products() {
                 </TableBody>
               </Table>
             </div>
+              )}
+            </>
           )}
         </motion.div>
       </main>

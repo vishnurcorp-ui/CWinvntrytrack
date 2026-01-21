@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navigate, Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, DollarSign, Edit2, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, DollarSign, Edit2, Trash2, Download } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -80,6 +80,62 @@ export default function Expenses() {
     });
   };
 
+  const exportToCSV = () => {
+    if (!expenses || expenses.length === 0) {
+      toast("No expenses to export");
+      return;
+    }
+
+    // Prepare CSV headers
+    const headers = [
+      "Date",
+      "Category",
+      "Vendor",
+      "Description",
+      "Notes",
+      "Client",
+      "Outlet",
+      "Order Number",
+      "Amount (INR)",
+      "Payment Method",
+    ];
+
+    // Prepare CSV rows
+    const rows = expenses.map((expense) => [
+      formatDate(expense.date),
+      expense.category,
+      expense.vendor,
+      expense.description,
+      expense.notes || "",
+      expense.client?.name || "",
+      expense.outlet?.name || "",
+      expense.order?.orderNumber || "",
+      expense.amount.toString(),
+      expense.paymentMode,
+    ]);
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) =>
+        row.map((cell) => `"${cell.toString().replace(/"/g, '""')}"`).join(",")
+      ),
+    ].join("\n");
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `expenses_${new Date().toISOString().split("T")[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast("Expenses exported successfully");
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <nav className="border-b border-border bg-card">
@@ -91,14 +147,25 @@ export default function Expenses() {
                 Back
               </Button>
             </Link>
-            <Button
-              size="sm"
-              onClick={() => setIsAddDialogOpen(true)}
-              className="gap-2 text-xs"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add Expense
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportToCSV}
+                className="gap-2 text-xs"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export CSV
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setIsAddDialogOpen(true)}
+                className="gap-2 text-xs"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Expense
+              </Button>
+            </div>
           </div>
         </div>
       </nav>

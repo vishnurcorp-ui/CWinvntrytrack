@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navigate, Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Users, Plus, Edit, Trash2 } from "lucide-react";
+import { ArrowLeft, Users, Plus, Edit, Trash2, Search } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -36,6 +36,8 @@ export default function Clients({ embedded = false }: { embedded?: boolean }) {
   const clients = useQuery(api.clients.list);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
   const removeClient = useMutation(api.clients.remove);
 
   const handleDelete = async (id: any) => {
@@ -48,6 +50,19 @@ export default function Clients({ embedded = false }: { embedded?: boolean }) {
       }
     }
   };
+
+  // Filter clients based on search and type
+  const filteredClients = clients?.filter((client) => {
+    const matchesSearch =
+      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      client.contactPerson.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      client.contactPhone.includes(searchQuery) ||
+      client.contactEmail?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesType = typeFilter === "all" || client.type === typeFilter;
+
+    return matchesSearch && matchesType;
+  }) || [];
 
   if (viewer === undefined || clients === undefined) {
     return (
@@ -101,7 +116,39 @@ export default function Clients({ embedded = false }: { embedded?: boolean }) {
               </Button>
             </div>
           ) : (
-            <div className="bg-card border border-border">
+            <>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name, contact person, phone, or email..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 text-sm"
+                  />
+                </div>
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger className="w-full sm:w-48 text-sm">
+                    <SelectValue placeholder="Filter by type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="hotel">Hotel</SelectItem>
+                    <SelectItem value="restaurant">Restaurant</SelectItem>
+                    <SelectItem value="cafe">Cafe</SelectItem>
+                    <SelectItem value="office">Office</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {filteredClients.length === 0 ? (
+                <div className="bg-card border border-border p-12 text-center">
+                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-sm text-muted-foreground">No clients found matching your search</p>
+                </div>
+              ) : (
+                <div className="bg-card border border-border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -115,7 +162,7 @@ export default function Clients({ embedded = false }: { embedded?: boolean }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {clients.map((client) => (
+                  {filteredClients.map((client) => (
                     <TableRow key={client._id}>
                       <TableCell className="text-xs font-medium">
                         {client.name}
@@ -166,6 +213,8 @@ export default function Clients({ embedded = false }: { embedded?: boolean }) {
                 </TableBody>
               </Table>
             </div>
+              )}
+            </>
           )}
 
           <Dialog open={!!editingClient} onOpenChange={() => setEditingClient(null)}>

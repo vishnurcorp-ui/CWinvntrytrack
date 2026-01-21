@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Navigate, Link } from "react-router";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ShoppingCart, Plus, X, Edit, Settings, Trash2 } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Plus, X, Edit, Settings, Trash2, Search } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -37,6 +37,8 @@ export default function Orders() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editingOrderDetails, setEditingOrderDetails] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const removeOrder = useMutation(api.orders.remove);
 
   // Fetch full order details when updating status
@@ -44,6 +46,18 @@ export default function Orders() {
     api.orders.getById,
     editingOrderId ? { id: editingOrderId as any } : "skip"
   );
+
+  // Filter orders based on search and status
+  const filteredOrders = orders?.filter((order) => {
+    const matchesSearch =
+      order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.client?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.outlet?.name.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesStatus = statusFilter === "all" || order.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  }) || [];
 
   const handleDelete = async (order: any) => {
     if (order.status === "delivered" || order.status === "partially_delivered") {
@@ -116,6 +130,35 @@ export default function Orders() {
             </p>
           </div>
 
+          {orders.length > 0 && (
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by order number, client, or outlet..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 text-sm"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-48 text-sm">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="packed">Packed</SelectItem>
+                  <SelectItem value="shipped">Shipped</SelectItem>
+                  <SelectItem value="partially_delivered">Partially Delivered</SelectItem>
+                  <SelectItem value="delivered">Delivered</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {orders.length === 0 ? (
             <div className="bg-card border border-border p-12 text-center">
               <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -140,7 +183,14 @@ export default function Orders() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {orders.map((order) => (
+                  {filteredOrders.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
+                        No orders found matching your search
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredOrders.map((order) => (
                     <TableRow key={order._id}>
                       <TableCell className="text-xs font-mono">
                         {order.orderNumber}
@@ -205,7 +255,8 @@ export default function Orders() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ))
+                  )}
                 </TableBody>
               </Table>
             </div>
