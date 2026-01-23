@@ -1,0 +1,288 @@
+import { v } from "convex/values";
+import { mutation, query, internalMutation } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
+import { internal } from "./_generated/api";
+export const list = query({
+    args: {},
+    handler: async (ctx) => {
+        const movements = await ctx.db.query("stockMovements").take(100);
+        const enriched = await Promise.all(movements.map(async (movement) => {
+            const product = await ctx.db.get(movement.productId);
+            const location = await ctx.db.get(movement.locationId);
+            const fromLocation = movement.fromLocationId
+                ? await ctx.db.get(movement.fromLocationId)
+                : null;
+            const toLocation = movement.toLocationId
+                ? await ctx.db.get(movement.toLocationId)
+                : null;
+            return {
+                ...movement,
+                product,
+                location,
+                fromLocation,
+                toLocation,
+            };
+        }));
+        return enriched;
+    },
+});
+export const listByProduct = query({
+    args: { productId: v.id("products") },
+    handler: async (ctx, args) => {
+        const movements = await ctx.db
+            .query("stockMovements")
+            .withIndex("by_product", (q) => q.eq("productId", args.productId))
+            .take(50);
+        const enriched = await Promise.all(movements.map(async (movement) => {
+            const location = await ctx.db.get(movement.locationId);
+            return { ...movement, location };
+        }));
+        return enriched;
+    },
+});
+export const listByLocation = query({
+    args: { locationId: v.id("locations") },
+    handler: async (ctx, args) => {
+        const movements = await ctx.db
+            .query("stockMovements")
+            .withIndex("by_location", (q) => q.eq("locationId", args.locationId))
+            .take(50);
+        const enriched = await Promise.all(movements.map(async (movement) => {
+            const product = await ctx.db.get(movement.productId);
+            return { ...movement, product };
+        }));
+        return enriched;
+    },
+});
+export const recordInbound = mutation({
+    args: {
+        productId: v.id("products"),
+        locationId: v.id("locations"),
+        quantity: v.number(),
+        unitType: v.optional(v.string()),
+        referenceNumber: v.optional(v.string()),
+        notes: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId)
+            throw new Error("Not authenticated");
+        const movementId = await ctx.db.insert("stockMovements", {
+            productId: args.productId,
+            locationId: args.locationId,
+            movementType: "inbound",
+            quantity: args.quantity,
+            unitType: args.unitType,
+            referenceNumber: args.referenceNumber,
+            notes: args.notes,
+            performedBy: userId,
+            movementDate: Date.now(),
+        });
+        await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+            productId: args.productId,
+            locationId: args.locationId,
+            adjustment: args.quantity,
+        });
+        return movementId;
+    },
+});
+export const recordOutbound = mutation({
+    args: {
+        productId: v.id("products"),
+        locationId: v.id("locations"),
+        quantity: v.number(),
+        unitType: v.optional(v.string()),
+        orderId: v.optional(v.id("orders")),
+        notes: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId)
+            throw new Error("Not authenticated");
+        const movementId = await ctx.db.insert("stockMovements", {
+            productId: args.productId,
+            locationId: args.locationId,
+            movementType: "outbound",
+            quantity: args.quantity,
+            unitType: args.unitType,
+            orderId: args.orderId,
+            notes: args.notes,
+            performedBy: userId,
+            movementDate: Date.now(),
+        });
+        await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+            productId: args.productId,
+            locationId: args.locationId,
+            adjustment: -args.quantity,
+        });
+        return movementId;
+    },
+});
+export const recordTransfer = mutation({
+    args: {
+        productId: v.id("products"),
+        fromLocationId: v.id("locations"),
+        toLocationId: v.id("locations"),
+        quantity: v.number(),
+        unitType: v.optional(v.string()),
+        notes: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId)
+            throw new Error("Not authenticated");
+        const movementId = await ctx.db.insert("stockMovements", {
+            productId: args.productId,
+            locationId: args.fromLocationId,
+            movementType: "transfer",
+            quantity: args.quantity,
+            unitType: args.unitType,
+            fromLocationId: args.fromLocationId,
+            toLocationId: args.toLocationId,
+            notes: args.notes,
+            performedBy: userId,
+            movementDate: Date.now(),
+        });
+        await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+            productId: args.productId,
+            locationId: args.fromLocationId,
+            adjustment: -args.quantity,
+        });
+        await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+            productId: args.productId,
+            locationId: args.toLocationId,
+            adjustment: args.quantity,
+        });
+        return movementId;
+    },
+});
+export const update = mutation({
+    args: {
+        id: v.id("stockMovements"),
+        quantity: v.number(),
+        notes: v.optional(v.string()),
+        movementDate: v.optional(v.number()),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId)
+            throw new Error("Not authenticated");
+        const movement = await ctx.db.get(args.id);
+        if (!movement)
+            throw new Error("Stock movement not found");
+        const oldQuantity = movement.quantity;
+        const quantityDifference = args.quantity - oldQuantity;
+        // Update the stock movement record
+        await ctx.db.patch(args.id, {
+            quantity: args.quantity,
+            notes: args.notes,
+            movementDate: args.movementDate ?? movement.movementDate,
+        });
+        // Adjust inventory based on the quantity difference
+        if (quantityDifference !== 0) {
+            if (movement.movementType === "inbound") {
+                await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+                    productId: movement.productId,
+                    locationId: movement.locationId,
+                    adjustment: quantityDifference,
+                });
+            }
+            else if (movement.movementType === "outbound") {
+                await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+                    productId: movement.productId,
+                    locationId: movement.locationId,
+                    adjustment: -quantityDifference,
+                });
+            }
+            else if (movement.movementType === "transfer") {
+                // Reverse from the old "from" location
+                await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+                    productId: movement.productId,
+                    locationId: movement.fromLocationId,
+                    adjustment: -quantityDifference,
+                });
+                // Add to the "to" location
+                await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+                    productId: movement.productId,
+                    locationId: movement.toLocationId,
+                    adjustment: quantityDifference,
+                });
+            }
+        }
+        return args.id;
+    },
+});
+export const remove = mutation({
+    args: { id: v.id("stockMovements") },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId)
+            throw new Error("Not authenticated");
+        const movement = await ctx.db.get(args.id);
+        if (!movement)
+            throw new Error("Stock movement not found");
+        // Reverse the inventory changes
+        if (movement.movementType === "inbound") {
+            // Reverse: subtract the quantity that was added
+            await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+                productId: movement.productId,
+                locationId: movement.locationId,
+                adjustment: -movement.quantity,
+            });
+        }
+        else if (movement.movementType === "outbound") {
+            // Reverse: add back the quantity that was removed
+            await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+                productId: movement.productId,
+                locationId: movement.locationId,
+                adjustment: movement.quantity,
+            });
+        }
+        else if (movement.movementType === "transfer") {
+            // Reverse: add back to "from" location, remove from "to" location
+            await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+                productId: movement.productId,
+                locationId: movement.fromLocationId,
+                adjustment: movement.quantity,
+            });
+            await ctx.scheduler.runAfter(0, internal.stockMovements.updateInventory, {
+                productId: movement.productId,
+                locationId: movement.toLocationId,
+                adjustment: -movement.quantity,
+            });
+        }
+        // Delete the movement record
+        await ctx.db.delete(args.id);
+        return args.id;
+    },
+});
+export const updateInventory = internalMutation({
+    args: {
+        productId: v.id("products"),
+        locationId: v.id("locations"),
+        adjustment: v.number(),
+    },
+    handler: async (ctx, args) => {
+        const existing = await ctx.db
+            .query("inventory")
+            .withIndex("by_product_and_location", (q) => q.eq("productId", args.productId).eq("locationId", args.locationId))
+            .unique();
+        if (existing) {
+            const newQuantity = existing.quantity + args.adjustment;
+            await ctx.db.patch(existing._id, {
+                quantity: Math.max(0, newQuantity),
+                lastUpdated: Date.now(),
+            });
+        }
+        else {
+            if (args.adjustment > 0) {
+                await ctx.db.insert("inventory", {
+                    productId: args.productId,
+                    locationId: args.locationId,
+                    quantity: args.adjustment,
+                    lastUpdated: Date.now(),
+                });
+            }
+        }
+    },
+});
