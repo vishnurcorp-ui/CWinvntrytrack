@@ -233,7 +233,13 @@ const schema = defineSchema(
     }).index("by_category", ["category"])
       .index("by_order", ["orderId"])
       .index("by_outlet", ["outletId"])
-      .index("by_date", ["date"])
+      .index("by_date", ["date"]),
+
+    // Global Order Counter
+    orderCounter: defineTable({
+      counterName: v.string(), // "globalOrderCounter"
+      currentValue: v.number(), // Starting from 84
+    }).index("by_name", ["counterName"])
   },
   {
     schemaValidation: false,

@@ -146,8 +146,8 @@ export const create = mutation({
     const outlet = await ctx.db.get(args.outletId);
     if (!outlet) throw new Error("Outlet not found");
 
-    // Generate order number: OUTLETCODE-DDMMYY-XX
-    // Example: MPC-150126-01 (MPC Kora, 15th Jan 2026, 1st order)
+    // Generate order number: OUTLETNAME-DDMMYY-XX
+    // Example: MPC-150126-84 (MPC outlet, 15th Jan 2026, 84th order globally)
     const now = new Date();
     const day = String(now.getDate()).padStart(2, '0');
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -157,23 +157,30 @@ export const create = mutation({
     // Get outlet code or generate from name
     const outletCode = outlet.code || outlet.name.substring(0, 3).toUpperCase();
 
-    // Get today's start and end timestamps
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const todayEnd = todayStart + 24 * 60 * 60 * 1000;
+    // Get or initialize global order counter
+    const counterName = "globalOrderCounter";
+    const existingCounter = await ctx.db
+      .query("orderCounter")
+      .withIndex("by_name", (q) => q.eq("counterName", counterName))
+      .first();
 
-    // Count orders for this outlet today
-    // Limit query to today's orders only - much faster than filtering all orders
-    const todayOrdersForOutlet = await ctx.db
-      .query("orders")
-      .withIndex("by_outlet", (q) => q.eq("outletId", args.outletId))
-      .filter((q) => q.and(
-        q.gte(q.field("orderDate"), todayStart),
-        q.lt(q.field("orderDate"), todayEnd)
-      ))
-      .collect();
+    let currentOrderNumber: number;
+    if (!existingCounter) {
+      // Initialize counter at 84 for first order
+      const counterId = await ctx.db.insert("orderCounter", {
+        counterName,
+        currentValue: 84,
+      });
+      currentOrderNumber = 84;
+    } else {
+      // Increment the counter for next order
+      currentOrderNumber = existingCounter.currentValue + 1;
+      await ctx.db.patch(existingCounter._id, {
+        currentValue: currentOrderNumber,
+      });
+    }
 
-    const sequenceNumber = String(todayOrdersForOutlet.length + 1).padStart(2, '0');
-    const orderNumber = `${outletCode}-${dateStr}-${sequenceNumber}`;
+    const orderNumber = `${outletCode}-${dateStr}-${currentOrderNumber}`;
 
     const orderId = await ctx.db.insert("orders", {
       orderNumber,
@@ -503,5 +510,35 @@ export const remove = mutation({
     // Delete the order
     await ctx.db.delete(args.id);
     return args.id;
+  },
+});
+
+// Initialize or update the global order counter
+export const initializeOrderCounter = mutation({
+  args: {
+    startValue: v.number() // e.g., 83 to start next order at 84
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const counterName = "globalOrderCounter";
+    const existingCounter = await ctx.db
+      .query("orderCounter")
+      .withIndex("by_name", (q) => q.eq("counterName", counterName))
+      .first();
+
+    if (existingCounter) {
+      await ctx.db.patch(existingCounter._id, {
+        currentValue: args.startValue,
+      });
+      return { message: `Counter updated to ${args.startValue}`, currentValue: args.startValue };
+    } else {
+      await ctx.db.insert("orderCounter", {
+        counterName,
+        currentValue: args.startValue,
+      });
+      return { message: `Counter initialized at ${args.startValue}`, currentValue: args.startValue };
+    }
   },
 });
