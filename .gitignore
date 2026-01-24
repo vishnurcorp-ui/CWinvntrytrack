@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Convex compiled files
+src/convex/**/*.js
+src/convex/**/*.js.map
+!src/convex/_generated/**
