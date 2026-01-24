@@ -3,7 +3,7 @@ import { Package, TrendingUp, BarChart3, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router";
 import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { api } from "convex/_generated/api";
 import { Navigate } from "react-router";
 
 export default function Landing() {

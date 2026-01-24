@@ -23,7 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
-# Convex compiled files
-src/convex/**/*.js
-src/convex/**/*.js.map
-!src/convex/_generated/**
+# Convex
+.convex/
+convex/**/*.js
+convex/**/*.js.map
+!convex/_generated/**

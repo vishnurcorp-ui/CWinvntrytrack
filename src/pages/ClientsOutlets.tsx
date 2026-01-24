@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Navigate, Link } from "react-router";
 import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { api } from "convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

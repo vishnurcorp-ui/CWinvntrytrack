@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { api } from "convex/_generated/api";
 import { Navigate, Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, TrendingUp, TrendingDown, ArrowRightLeft, Plus, X, Edit, Trash2 } from "lucide-react";
